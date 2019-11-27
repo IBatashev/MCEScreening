@@ -3,7 +3,7 @@ from ase import io
 # atoms = io.read('9012616.cif')
 # atoms.write('POSCAR_asse', format = 'vasp', direct=True)
 
-filename = 'test_POSCAR_for_sym_detector'
+filename = 'test_POSCAR'
 
 ### List of Magnetic Atoms
 magnetic = ['Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Gd'] # need to add all of them later
