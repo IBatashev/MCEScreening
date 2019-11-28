@@ -1,24 +1,3 @@
-#--------------------------------TO DO------------------------------#
-# 100 test materials - select ~20 good magnetocaloric materials (preferably at least one from each crystal symmetry type) & randomly pick 80 materials from database
-# we should have an even distribution between lattice types so like 20 random from cubic, 20 random from hex, etc.
-
-# download 8000? files again and sort them. (aflow_ICSD)
-
-# Upload everything to github and this list separetly as TO DO
-
-# sym_detector has to be fixed
-
-# read how to properly do modules in python and do it + properly comment all code and add function descriptors
-
-# add error messages everywhere so we can troubleshoot
-
-# all latice deformations have to be properly tested
-
-# add check to make sure direct coordinates are supplied in initial POSCAR from aflow
-
-# Fix the thing about volume increase constant in initial POSCAR from aflow
-# ------------------------------------------------------------------#
-
 import os
 import numpy as np
 from ase import geometry

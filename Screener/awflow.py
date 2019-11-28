@@ -2,6 +2,7 @@ from aflow import *
 import pandas
 import numpy as np
 import time
+
 result = search(catalog='icsd', batch_size=100
     ).filter( (K.species == "Mn") |
               (K.species == "Fe") |
