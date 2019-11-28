@@ -1,9 +1,13 @@
 import pandas as pd
 import numpy as np
 import phonopy
-# from ase import io
+from ase import io
 import os
 from numpy import genfromtxt
+
+from Screener import sym_detector
+
+One need to make it progressivy going and properly separate functions
 
 def Make_Sample_set_for_MCEScreening_tests():
     df = pd.read_csv('Alldata.csv', index_col=0, sep=',')
@@ -21,38 +25,26 @@ def Make_Sample_set_for_MCEScreening_tests():
 
 def Calculate_mag_field_for_aflow_datalist():
     # I should rewrite it using pandas I guess - now it;s a bit sketchy
-    my_data = genfromtxt('Alldata.csv', delimiter=',', fmt=str)
+
+    my_data = genfromtxt('datalist.csv', delimiter=',', fmt=str)
     i = 0
     while i <= 8043:
         my_data[i, 6] = str(((float(my_data[i, 5])*9.2741*10**(-24))/(float(my_data[i, 4])*10**(-30)))*4*3.14*10**(-7))
         i = i + 1
     np.savetxt("new_data.txt", my_data, delimiter=',')
 
+    # this should be a better approach -test
+    df = pd.read_csv('datalist.csv', index_col=0, sep=',')
+    for item in df.index.tolist():
+        unique = sym_detector.mag_sites_calculator(item['mag_field'])
+        df.loc[item,'mag_field'] = unique   # write resulting number of sites into datalist
+
 
 def Calculate_unique_mag_positions_and_add_to_datalist():
-    df = pd.read_csv('data.txt', index_col=0, sep=',')
+    df = pd.read_csv('datalist.csv', index_col=0, sep=',')
     for item in df.index.tolist():
-        ph = phonopy.load(unitcell_filename="./data/"+str(item))
-        sym_list = ph.get_symmetry().get_Wyckoff_letters()
-        at_type_len = len(ph.unitcell.get_positions())
-        at_list = []
-        at_type_list = []
-
-        poscar = open("./data/"+str(item), "r")
-        list = []
-        for line in poscar:
-            list.append(line)
-        poscar.close()
-        for i in range(7, 7 + at_type_len):
-            l = str.split(list[i], '  ')
-            at_type_list.append(str(l[4]))
-
-        for num, val in enumerate(sym_list):  ### build list of magnetic positions
-            if at_type_list[num] in magnetic:
-                at_list.append(val)
-        num_unique = len(set(at_list))  ### check how many are unique
-        df.loc[item,'mag_sites'] = num_unique  ### return resulting number of sites
-
+        unique = sym_detector.mag_sites_calculator(item['count'])
+        df.loc[item,'mag_sites'] = unique   # write resulting number of sites into datalist
 
 
 # for num, val in enumerate(sym_list):

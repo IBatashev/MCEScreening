@@ -2,8 +2,8 @@ import os
 import numpy as np
 from ase import geometry
 
-import INCAR_maker
-import POSCAR_maker
+from Runner import INCAR_maker
+from Runner import POSCAR_maker
 
 def single_run(def_type, def_matrix):
     """Creates files for a single VASP run, executes job and cleans up"""
@@ -124,11 +124,12 @@ def deformed_lattice(lattice_type):
     else: print("Error! Unknown Lattice type for "+str(ID))
 
 ID = 1770       # at the begining script gets ID of the structure we are going to work with as input argument
-path = 'test/'  # folder where all subfolders for a single ID will be created/executed/cleaned - working directory
+path = '../test/'  # folder where all subfolders for a single ID will be created/executed/cleaned - working directory
 n = 1.2         # deformation coefficient
+poscar_file = '../Database/datadir/'+str(ID)
 
 # take all information from poscar as list of strings:
-poscar = open(str(ID), "r")
+poscar = open(poscar_file, "r")
 poscar_content = []
 for line in poscar:
     poscar_content.append(line)
