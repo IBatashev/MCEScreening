@@ -2,21 +2,7 @@ import pandas as pd
 import phonopy
 from ase import io
 
-def screener(datalist):
-    df = pd.read_csv(datalist, index_col=0, sep=',')
-    for item in df.index.tolist():
-        ### Write number of sites into datalist:
-        df.loc[item, 'mag_sites'] = mag_sites_calculator(item['ID'])
-        ### Write number of sites into datalist:
-        df.loc[item,'mag_field'] = calculate_mag_field(df.loc[item,'moment_cell'], df.loc[item,'volume_cell'])
-        ### Work with duplicates...
 
-
-    # for num, val in enumerate(sym_list):
-    # if at_type_list[num] in Rb:
-    #     df = df.drop([item], axis=0)
-
-    # df.to_csv()
 
 def calculate_mag_field(moment, volume):
     """Takes cell moment in [mB] and volume in [A^3] and returns value for internal magnetic field in [T]"""
@@ -32,7 +18,9 @@ def mag_sites_calculator(ID):
     """Determines how many unique magnetic sites are present in the structure.
     Takes ID as input, looks up poscar file in the datadir and returns number of sites as integer"""
 
-    poscar_file = '../Database/datadir/'+str(ID)
+    # poscar_file = '../Database/datadir/'+str(ID)
+    poscar_file = '../Database/small_datadir/'+str(ID) # for tests
+
     ### List of Magnetic Atoms
     # need to add all of them later
     magnetic = ['Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Gd']
@@ -53,8 +41,8 @@ def mag_sites_calculator(ID):
     poscar.close()
 
     for i in range(7, 7 + at_type_len):             # POSCAR files from aflowlib have 7 lines of text before atomic coordinates! so we start at line 8
-        l = str.split(poscar_content[i], '  ')      # Aflow POSCAR has symbols for elements listed after their coordinate
-        at_type_list.append(str(l[4]))              # create a list of all elements in the structure
+        l = str.split(poscar_content[i])            # Aflow POSCAR has symbols for elements listed after their coordinate
+        at_type_list.append(str(l[3]))              # create a list of all elements in the structure
 
     ### Check how many unique MAGNETIC sites are present
     at_list = []
@@ -64,6 +52,7 @@ def mag_sites_calculator(ID):
     num_unique = len(set(at_list))                  # check how many are unique
     return num_unique                               # return resulting number of sites
 
+print(mag_sites_calculator(1770))
 
     ### Another attempt to do same as above need to test both further
 
@@ -74,3 +63,23 @@ def mag_sites_calculator(ID):
     #     print(sym_point)
     # print(sym_list)
     # print(at_type_list)
+
+
+def screener(datalist):
+    df = pd.read_csv(datalist, index_col=0, sep=',')
+    for item in df.index.tolist():
+        print(item)
+        ### Write number of sites into datalist:
+        df.loc[item, 'mag_sites'] = mag_sites_calculator(item)
+        ### Write number of sites into datalist:
+        df.loc[item, 'mag_field'] = calculate_mag_field(df.loc[item, 'moment_cell'], df.loc[item, 'volume_cell'])
+        ### Work with duplicates...
+
+        ### Write to separate file
+        df.to_csv(datalist.replace(".csv",'_edited.csv'))
+
+    # for num, val in enumerate(sym_list):
+    # if at_type_list[num] in Rb:
+    #     df = df.drop([item], axis=0)
+
+# screener('../Database/datalist.csv')
