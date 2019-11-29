@@ -15,5 +15,5 @@ TODO:
 Essentially MCEScreening consists of two parts:
 1. _Screener_ - used to download data from Aflow and apply various screening criteria.   
 2. _Runner_ - a set of scripts used to run various vasp calculations. These work on cluster nodes, and preferably only 
-have a very basic set of dependences to avoid the need to insatll many extra packages.
+have a very basic set of dependencies to avoid the need to insatal many extra packages.
 
