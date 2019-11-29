@@ -11,7 +11,7 @@ def screener(datalist):
         df.loc[item,'mag_field'] = calculate_mag_field(df.loc[item,'moment_cell'], df.loc[item,'volume_cell'])
         ### Work with duplicates...
 
-        
+
     # for num, val in enumerate(sym_list):
     # if at_type_list[num] in Rb:
     #     df = df.drop([item], axis=0)

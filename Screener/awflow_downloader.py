@@ -2,52 +2,64 @@ from aflow import *
 import time
 
 result = search(catalog='icsd', batch_size=100
-    ).filter( (K.species == "Mn") |
+    ).filter(
+             ### Must contain at least on of these:
+             ((K.species == "Mn") |
               (K.species == "Fe") |
               (K.species == "Co") |
               (K.species == "Ni") |
-              (K.species == "Cu")
-    ).select(
-             ~
-              (K.species == "Rb") &~
-              (K.species == "Cs") &~
-              (K.species == "Ba") &~
-              (K.species == "Re") &~
-              (K.species == "Os") &~
-              (K.species == "Ir") &~
-              (K.species == "Pt") &~
-              (K.species == "Au") &~
-              (K.species == "Hg") &~
-              (K.species == "Tl") &~
-              (K.species == "Pb") &~
-              (K.species == "Bi") &~
-              (K.species == "Tb") &~
-              (K.species == "Dy") &~
-              (K.species == "Ho") &~
-              (K.species == "Er") &~
-              (K.species == "Tm") &~
-              (K.species == "Yb") &~
-              (K.species == "Lu") &~
-              (K.species == "As") &~
-              (K.species == "He") &~
-              (K.species == "Ne") &~
-              (K.species == "Ar") &~
-              (K.species == "Kr") &~
-              (K.species == "Xe")
-    ).select(K.files == "CONTCAR.relax.vasp"
+              (K.species == "Cu"))
+             &
+             ### Does not contain any of these because:
+             (K.species != "Rb") &  # Why exactly do we exclude rubidium?
+
+             ### Expensive or limited in supply:
+             (K.species != "Cs") &
+             (K.species != "Re") &
+             (K.species != "Os") &
+             (K.species != "Ir") &
+             (K.species != "Pt") &
+             (K.species != "Au") &
+             ### Toxic:
+             (K.species != "As") &
+             (K.species != "Cd") & # ?
+             (K.species != "In") & # ?
+             (K.species != "Ba") &
+             (K.species != "Hg") &
+             (K.species != "Tl") &
+             (K.species != "Pb") &
+             ### Noble gases:
+             # (K.species != "He") & only reason He is not sorted out is because i reached maximum possible querry criteria,
+             # and there aren't any compounds with He anyway so it is safe to leave and include one more important instead
+             (K.species != "Ne") &
+             (K.species != "Ar") &
+             (K.species != "Kr") &
+             (K.species != "Xe") &
+             ### Rare Earths (rare AND expensive), BUT we allow La, Ce, Pr, Nd, Pm, Sm, Eu, Gd
+             ### maybe we should allow all of them...
+             (K.species != "Tb") &
+             (K.species != "Dy") &
+             (K.species != "Ho") &
+             (K.species != "Er") &
+             (K.species != "Tm") &
+             (K.species != "Yb") &
+             (K.species != "Lu")
+             # Further elements not mentioned this list are not in aflow database at all.
+             # It contains only first 83 elements, so they are sorted out by default.
+      ).filter(K.files == "CONTCAR.relax.vasp"
              # This is only to look at entries that have POSCAR.
              # This selection is not really necessary as it seems that all entries in FULL aflolib have POSCAR.relax structure file
              # (165705 hits with; same 165705 hits without)
-    ).select((K.spin_cell > 0) | (K.spin_cell < 0)
-             # only find entries with non-zero moment not sure if one need to consider <0 though
-    ).select(K.enthalpy_cell < 0)
+      ).filter((K.spin_cell > 0) | (K.spin_cell < 0)
+    #          # only find entries with non-zero moment not sure if one need to consider <0 though
+      ).filter(K.enthalpy_cell < 0)
              # entalpy must me negative - othervise structure would not form in real life
 
 totalN = len(result)
 print(totalN)
 
 def downloader(counter=0, default_decounter=250):
-    """Function used to download poscar files and fill up datalist with information from Aflow
+    """Function used to download POSCAR files and fill up datalist with information from Aflow
     Works with search result, has two parameters:
     counter - The search entry where we start downloading from (technically we always want zero, only added for flexebility)
     decounter - number of entries we download in a batch before waiting for some time in order not to overburden aflow with requests"""
