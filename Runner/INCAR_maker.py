@@ -35,7 +35,7 @@ def writer(out_path, poscar_info):
     "LWAVE = .FALSE. \n"
     )
     incar.write(
-    "ENCUT = " + str(encut) +"\n" # does this affect speed in any way? is %f faaster?
+    "ENCUT = " + str(encut) +"\n"
     )
     incar.write(
     "MAGMOM = " + np.array_str(moment_list).strip('[').strip(']')+ "\n"

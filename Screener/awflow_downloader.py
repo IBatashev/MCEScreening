@@ -43,7 +43,6 @@ result = search(catalog='icsd', batch_size=100
     ).select(K.enthalpy_cell < 0)
              # entalpy must me negative - othervise structure would not form in real life
 
-
 totalN = len(result)
 print(totalN)
 
@@ -53,8 +52,8 @@ def downloader(counter=0, default_decounter=250):
     counter - The search entry where we start downloading from (technically we always want zero, only added for flexebility)
     decounter - number of entries we download in a batch before waiting for some time in order not to overburden aflow with requests"""
 
-    with open('./datalist.csv', 'a') as f:        # we create a csv file to write info into later
-        f.write("ID,compound,lattice_system_relax,spacegroup_relax,volume_cell,spin_cell,mag_field,mag_sites")
+    with open('./datalist.csv', 'a') as f:        # we create a csv file to write info into
+        f.write("ID,compound,lattice_system,spacegroup,volume_cell,moment_cell,mag_field,mag_sites")
     decounter = default_decounter
     while counter <= totalN:
         result[counter].files["CONTCAR.relax.vasp"]("./data/"+str(counter))

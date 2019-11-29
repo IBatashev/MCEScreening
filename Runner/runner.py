@@ -50,7 +50,6 @@ def deformed_lattice(lattice_type):
     # "MCLC"    13 Base centered monoclinic
     # "TRI"     14 Triclinic
 
-
     if lattice_type == "CUB" or lattice_type == "FCC" or lattice_type == "BCC":
         deformation_types = 'a'
         for deformation_type in deformation_types:
@@ -123,27 +122,27 @@ def deformed_lattice(lattice_type):
 
     else: print("Error! Unknown Lattice type for "+str(ID))
 
-ID = 1770       # at the begining script gets ID of the structure we are going to work with as input argument
-path = '../test/'  # folder where all subfolders for a single ID will be created/executed/cleaned - working directory
-n = 1.2         # deformation coefficient
+ID = 1770           # at the begining script gets ID of the structure we are going to work with as input argument
+path = '../test/'   # folder where all subfolders for a single ID will be created/executed/cleaned - working directory
+n = 1.2             # deformation coefficient
 poscar_file = '../Database/datadir/'+str(ID)
 
-# take all information from poscar as list of strings:
+### Take all information from poscar as list of strings:
 poscar = open(poscar_file, "r")
 poscar_content = []
 for line in poscar:
     poscar_content.append(line)
 poscar.close()
 
-# use ase to get Bravais lattice type from lattice in poscar
+### Use ase to get Bravais lattice type from lattice in poscar
 lattice_matrix = np.zeros([3, 3])
 for i in range(2, 5):
     lattice_matrix[i - 2, :] = np.fromstring(poscar_content[i], dtype=np.float, sep=' ')
 read_lattice_matrix = geometry.Cell.new(lattice_matrix)
 lat_type = str(read_lattice_matrix.get_bravais_lattice()).split("(")[0]
 
-# create a folder for a job without any deformation and run it
+### Create a folder for a job without any deformation and run it
 undeformed_lattice()
 
-# create the proper number of folders for all possible deformations according to Bravais lattice type and run them
+### Create the proper number of folders for all possible deformations according to Bravais lattice type and run them
 deformed_lattice(lat_type)
