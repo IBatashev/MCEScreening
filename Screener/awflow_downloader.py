@@ -11,19 +11,18 @@ result = search(catalog='icsd', batch_size=100
               (K.species == "Cu"))
              &
              ### Does not contain any of these because:
-             (K.species != "Rb") &  # Why exactly do we exclude rubidium?
-
              ### Expensive or limited in supply:
-             (K.species != "Cs") &
              (K.species != "Re") &
              (K.species != "Os") &
              (K.species != "Ir") &
              (K.species != "Pt") &
              (K.species != "Au") &
-             ### Toxic:
+             (K.species != "In") &
+             ### Health Hazard:
+             (K.species != "Be") &
              (K.species != "As") &
-             (K.species != "Cd") & # ?
-             (K.species != "In") & # ?
+             (K.species != "Cd") &
+             (K.species != "Cs") &
              (K.species != "Ba") &
              (K.species != "Hg") &
              (K.species != "Tl") &
@@ -34,17 +33,8 @@ result = search(catalog='icsd', batch_size=100
              (K.species != "Ne") &
              (K.species != "Ar") &
              (K.species != "Kr") &
-             (K.species != "Xe") &
-             ### Rare Earths (rare AND expensive), BUT we allow La, Ce, Pr, Nd, Pm, Sm, Eu, Gd
-             ### maybe we should allow all of them...
-             (K.species != "Tb") &
-             (K.species != "Dy") &
-             (K.species != "Ho") &
-             (K.species != "Er") &
-             (K.species != "Tm") &
-             (K.species != "Yb") &
-             (K.species != "Lu")
-             # Further elements not mentioned this list are not in aflow database at all.
+             (K.species != "Xe")
+             #  Elements afte Bi not mentioned this list are not in aflow database at all.
              # It contains only first 83 elements, so they are sorted out by default.
       ).filter(K.files == "CONTCAR.relax.vasp"
              # This is only to look at entries that have POSCAR.
