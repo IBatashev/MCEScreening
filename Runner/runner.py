@@ -2,7 +2,10 @@ import os
 import numpy as np
 from ase import geometry
 import argparse
+import subprocess
+
 import shutil
+
 import INCAR_maker
 import POSCAR_maker
 import POSCAR_reader
@@ -31,8 +34,9 @@ def single_run(def_type, def_matrix):
     INCAR_maker.writer(path_to_calc, poscar_content)
     POTCAR_maker.writer(path_to_calc, poscar_content)
     # job maker
-    # run job
-    # os.remdir after running and copiing all info
+    # run job :: either through a shell script and subprocess or custodian package
+    # save important results
+    # os.remdir(path_to_calc)
 
 def undeformed_lattice():
     """Creates all necessary files to run a VASP job for initial undeformed structure"""
@@ -140,23 +144,20 @@ def deformed_lattice(lattice_type):
     else: print("Error! Unknown Lattice type for "+str(ID))
 
 #--------------------- MAIN PART STARTS HERE ---------------------#
-ID = '1770'           # for testing purposes
-n = 1                 # when not run from console
-# args = parseArguments()
-# ID = args.ID            # At the begining script gets ID of the structure we are going to work with as input argument
-# n = args.deformation    # Deformation coefficient an optional input argument
-
-poscar_file = '../Database/datadir/'+str(ID) # We expect to find a Database folder in parent directory that contains datadir with POSCAR files
-
-
-
+args = parseArguments() # Get input arguments:
+ID = args.ID            # ID of the structure we are going to work with
+n = args.deformation    # deformation coefficient - an optional input argument
 path = '../'+ID+'/'     # Prepare folder folder where all subfolders for a single ID
-# os.makedirs(path)       # will be created/executed/cleaned - working directory
+os.makedirs(path)       # will be created/executed/cleaned - working directory
 
-if os.path.exists(path):    # TEMP
-    shutil.rmtree(path)     #
-os.makedirs(path)           #
+# if os.path.exists(path):    # TEMP for local tests
+#     shutil.rmtree(path)     #
+# os.makedirs(path)           #
+# ID = '1770'                 #
+# n = 1                       #
 
+### We expect to find a Database folder in parent directory that contains datadir with POSCAR files
+poscar_file = '../Database/datadir/'+str(ID)
 
 ### Take all information from poscar as list of strings:
 poscar_content = POSCAR_reader.read(poscar_file)
