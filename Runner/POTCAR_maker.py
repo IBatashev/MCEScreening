@@ -5,7 +5,7 @@ def writer(out_path, poscar_info):
     """Creates POTCAT file by copying and joining relevant POTCARS from pots directory"""
 
     # pots_dir = /vol/thchem/dewijs/vasp/potcars/PBE.54/
-    pots_dir = '../pots/' # Temporary probably change
+    pots_dir = '../pots/' # Temporary probably
 
     df = pd.read_csv('recommended_PAW.csv', index_col=0, sep=',')  # read the recommended potentials list
 
