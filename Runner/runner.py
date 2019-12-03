@@ -2,10 +2,11 @@ import os
 import numpy as np
 from ase import geometry
 import argparse
-
+import shutil
 import INCAR_maker
 import POSCAR_maker
 import POSCAR_reader
+import POTCAR_maker
 
 def parseArguments():
     """Function for parsing input argumens necessary for runner.py to work.
@@ -28,10 +29,10 @@ def single_run(def_type, def_matrix):
     os.mkdir(path_to_calc)
     POSCAR_maker.writer(path_to_calc, poscar_content, def_matrix)
     INCAR_maker.writer(path_to_calc, poscar_content)
-    # POTCAR maker
+    POTCAR_maker.writer(path_to_calc, poscar_content)
     # job maker
     # run job
-    # os.remdir after running anf copiing all info
+    # os.remdir after running and copiing all info
 
 def undeformed_lattice():
     """Creates all necessary files to run a VASP job for initial undeformed structure"""
@@ -138,16 +139,24 @@ def deformed_lattice(lattice_type):
 
     else: print("Error! Unknown Lattice type for "+str(ID))
 
-args = parseArguments()
-ID = args.ID                # at the begining script gets ID of the structure we are going to work with as input argument
-n = args.deformation        # deformation coefficient an optional input argument
-poscar_file = '../Database/datadir/'+str(ID)
+#--------------------- MAIN PART STARTS HERE ---------------------#
+ID = '1770'           # for testing purposes
+n = 1                 # when not run from console
+# args = parseArguments()
+# ID = args.ID            # At the begining script gets ID of the structure we are going to work with as input argument
+# n = args.deformation    # Deformation coefficient an optional input argument
 
-# ID = '1770'           # for testing purposes
-# n = 1.2               #
+poscar_file = '../Database/datadir/'+str(ID) # We expect to find a Database folder in parent directory that contains datadir with POSCAR files
 
-path = '../'+ID+'/'     # folder where all subfolders for a single ID will be created/executed/cleaned - working directory
-os.makedirs(path)
+
+
+path = '../'+ID+'/'     # Prepare folder folder where all subfolders for a single ID
+# os.makedirs(path)       # will be created/executed/cleaned - working directory
+
+if os.path.exists(path):    # TEMP
+    shutil.rmtree(path)     #
+os.makedirs(path)           #
+
 
 ### Take all information from poscar as list of strings:
 poscar_content = POSCAR_reader.read(poscar_file)

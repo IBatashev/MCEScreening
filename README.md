@@ -17,5 +17,6 @@ TODO:
 - add error messages/exceptions everywhere so we can troubleshoot
 - download ~8000 files again and sort them
 - fix rhombohedral lattice deformation
-
+- fill in all mag moments in recommended_PAW.csv
+- check if all necessary POTCARs for elements are present, maybe move to new folder - but probably not
 

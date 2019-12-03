@@ -10,6 +10,8 @@ def writer(out_path, poscar_info):
     for i in range(7, 7 + int(at_num_total)):  # POSCAR files from aflowlib have 7 lines of text before atomic coordinates! so we start at line 8
         l = poscar_info[i].split()
         at_type_list.append(str(l[3]))
+
+
     datafile = pd.read_csv('recommended_PAW.csv', index_col=0, sep=',')
     encut_list = np.empty([0, 1])
     moment_list = np.empty([0, 1])
