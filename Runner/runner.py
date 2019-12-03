@@ -1,9 +1,25 @@
 import os
 import numpy as np
 from ase import geometry
+import argparse
 
-from Runner import INCAR_maker
-from Runner import POSCAR_maker
+import INCAR_maker
+import POSCAR_maker
+import POSCAR_reader
+
+def parseArguments():
+    """Function for parsing input argumens necessary for runner.py to work.
+    We expect to at least get ID (name of POSCAR) to work with.
+    By default deformation coefficient is set to 1.2"""
+
+    parser = argparse.ArgumentParser()    # Create argument parser
+    # Positional mandatory arguments
+    parser.add_argument("ID", help="Name of POSCAR file", type=str)
+    # Optional arguments
+    parser.add_argument("-d", "--deformation", help="Deformation Coefficient", type=float, default=1.2)
+    # Parse arguments
+    args = parser.parse_args()
+    return args
 
 def single_run(def_type, def_matrix):
     """Creates files for a single VASP run, executes job and cleans up"""
@@ -122,27 +138,30 @@ def deformed_lattice(lattice_type):
 
     else: print("Error! Unknown Lattice type for "+str(ID))
 
-ID = 1770           # at the begining script gets ID of the structure we are going to work with as input argument
-path = '../test/'   # folder where all subfolders for a single ID will be created/executed/cleaned - working directory
-n = 1.2             # deformation coefficient
+args = parseArguments()
+ID = args.ID                # at the begining script gets ID of the structure we are going to work with as input argument
+n = args.deformation        # deformation coefficient an optional input argument
 poscar_file = '../Database/datadir/'+str(ID)
 
-### Take all information from poscar as list of strings:
-poscar = open(poscar_file, "r")
-poscar_content = []
-for line in poscar:
-    poscar_content.append(line)
-poscar.close()
+# ID = '1770'           # for testing purposes
+# n = 1.2               #
 
-### Use ase to get Bravais lattice type from lattice in poscar
+path = '../'+ID+'/'     # folder where all subfolders for a single ID will be created/executed/cleaned - working directory
+os.makedirs(path)
+
+### Take all information from poscar as list of strings:
+poscar_content = POSCAR_reader.read(poscar_file)
+
+### Use ase to get Bravais lattice type from lattice given in POSCAR
 lattice_matrix = np.zeros([3, 3])
 for i in range(2, 5):
     lattice_matrix[i - 2, :] = np.fromstring(poscar_content[i], dtype=np.float, sep=' ')
 read_lattice_matrix = geometry.Cell.new(lattice_matrix)
 lat_type = str(read_lattice_matrix.get_bravais_lattice()).split("(")[0]
 
-### Create a folder for a job without any deformation and run it
-undeformed_lattice()
+if n == 1:                     # Check if we want deformation to happen
+    undeformed_lattice()       # Create a folder for a job without any deformation and run it
+else:
+    undeformed_lattice()
+    deformed_lattice(lat_type) # Create the proper number of folders for all possible deformations according to Bravais lattice type and run them
 
-### Create the proper number of folders for all possible deformations according to Bravais lattice type and run them
-deformed_lattice(lat_type)

@@ -9,10 +9,9 @@ def writer(out_path, poscar_info, deformation_matrix):
     lattice_matrix = np.multiply(lattice_matrix, deformation_matrix) # adding deformation to the lattice
     filename = 'POSCAR'
     o = open(out_path+filename, "w+")
-    o.write(poscar_info[0].strip('\n')+' deformed ' + '\n') # writing poscar header
-    o.write(poscar_info[1])                     # writing constant by which all lattice parameters are multiplied - copied from original poscar,
-                                                # technically should be 1.0 - maybe check for this and raise error
-                                                # if not ? if yes set some accuracy tolerance as I have seen files with 1.000001
+    o.write(poscar_info[0])                     # writing poscar header
+    o.write('1.0\n')                            # writing constant by which all lattice parameters are multiplied - we always want 1.0
+                                                # which is not always true in awflow POSCAR files.
     o.write('   %.14f  %.14f  %.14f\n' % ((lattice_matrix[0,0]), (lattice_matrix[0,1]), (lattice_matrix[0,2])))
     o.write('   %.14f  %.14f  %.14f\n' % ((lattice_matrix[1,0]), (lattice_matrix[1,1]), (lattice_matrix[1,2])))
     o.write('   %.14f  %.14f  %.14f\n' % ((lattice_matrix[2,0]), (lattice_matrix[2,1]), (lattice_matrix[2,2])))

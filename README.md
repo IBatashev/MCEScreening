@@ -11,12 +11,11 @@ have a very basic set of dependencies to avoid the need to insatal many extra pa
 TODO:
 - Test if sym_detector works as intended, if not lower symmetry tolerance?
 - Add scripts for auotomatic processing - see 'custodian' package
-- Fix the thing about volume increase constant in initial POSCAR from aflow
+- Volume increase constant in initial POSCAR from aflow may cause incorrect estimate of moments! need to check for it
 - Add check to make sure direct coordinates are supplied in initial POSCAR from aflow (POSCAR_maker)
 - All latice deformations have to be properly tested
 - add error messages/exceptions everywhere so we can troubleshoot
 - download ~8000 files again and sort them
-- create a semi-random set of  materials to run quck tests
 - fix rhombohedral lattice deformation
 
 

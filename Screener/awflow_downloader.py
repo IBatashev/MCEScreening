@@ -55,7 +55,7 @@ def downloader(counter=0, default_decounter=250):
     decounter - number of entries we download in a batch before waiting for some time in order not to overburden aflow with requests"""
 
     with open('./datalist.csv', 'a') as f:        # we create a csv file to write info into
-        f.write("ID,compound,lattice_system,spacegroup,volume_cell,moment_cell,mag_field,mag_sites")
+        f.write("ID,compound,lattice_system,spacegroup,volume_cell,moment_cell,mag_field,mag_sites,comment1,comment2")
     decounter = default_decounter
     while counter <= totalN:
         result[counter].files["CONTCAR.relax.vasp"]("./data/"+str(counter))
