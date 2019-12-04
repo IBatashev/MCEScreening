@@ -58,7 +58,7 @@ def downloader(counter=0, default_decounter=250):
         f.write("ID,compound,lattice_system,spacegroup,volume_cell,moment_cell,mag_field,mag_sites,comment1,comment2")
     decounter = default_decounter
     while counter <= totalN:
-        result[counter].files["CONTCAR.relax.vasp"]("./data/"+str(counter))
+        result[counter].files["CONTCAR.relax.vasp"]("./downloaded_data/"+str(counter))
         newrow = str(counter)+','+ str(result[counter].compound)+','+str(result[counter].lattice_system_relax.strip('\n'))+','+ str(result[counter].spacegroup_relax)+','+str(result[counter].volume_cell)+','+ str(result[counter].spin_cell)+','+'0,0\n'
         with open('./datalist.csv', 'a') as f:
             f.write(newrow)
@@ -68,3 +68,5 @@ def downloader(counter=0, default_decounter=250):
             decounter = default_decounter
         counter = counter + 1
         decounter = decounter - 1
+
+downloader()

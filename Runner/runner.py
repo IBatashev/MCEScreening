@@ -3,7 +3,6 @@ import numpy as np
 from ase import geometry
 import argparse
 import subprocess
-
 import shutil
 
 import INCAR_maker
@@ -11,19 +10,6 @@ import POSCAR_maker
 import POSCAR_reader
 import POTCAR_maker
 
-def parseArguments():
-    """Function for parsing input argumens necessary for runner.py to work.
-    We expect to at least get ID (name of POSCAR) to work with.
-    By default deformation coefficient is set to 1.2"""
-
-    parser = argparse.ArgumentParser()    # Create argument parser
-    # Positional mandatory arguments
-    parser.add_argument("ID", help="Name of POSCAR file", type=str)
-    # Optional arguments
-    parser.add_argument("-d", "--deformation", help="Deformation Coefficient", type=float, default=1.2)
-    # Parse arguments
-    args = parser.parse_args()
-    return args
 
 def single_run(def_type, def_matrix):
     """Creates files for a single VASP run, executes job and cleans up"""
@@ -34,7 +20,7 @@ def single_run(def_type, def_matrix):
     INCAR_maker.writer(path_to_calc, poscar_content)
     POTCAR_maker.writer(path_to_calc, poscar_content)
     # job maker
-    # run job :: either through a shell script and subprocess or custodian package
+    # run job :: either through a shell script subprocess.call(['./test.sh'])  or custodian package
     # save important results
     # os.remdir(path_to_calc)
 
@@ -142,6 +128,20 @@ def deformed_lattice(lattice_type):
                 single_run(deformation_type, deformation_matrix)
 
     else: print("Error! Unknown Lattice type for "+str(ID))
+
+def parseArguments():
+    """Function for parsing input argumens necessary for runner.py to work.
+    We expect to at least get ID (name of POSCAR) to work with.
+    By default deformation coefficient is set to 1.2"""
+
+    parser = argparse.ArgumentParser()    # Create argument parser
+    # Positional mandatory arguments
+    parser.add_argument("ID", help="Name of POSCAR file", type=str)
+    # Optional arguments
+    parser.add_argument("-d", "--deformation", help="Deformation Coefficient", type=float, default=1.2)
+    # Parse arguments
+    args = parser.parse_args()
+    return args
 
 #--------------------- MAIN PART STARTS HERE ---------------------#
 args = parseArguments() # Get input arguments:
