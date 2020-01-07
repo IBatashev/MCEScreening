@@ -9,9 +9,12 @@ def writer(out_path, poscar_info, deformation_matrix):
     lattice_matrix = np.multiply(lattice_matrix, deformation_matrix) # adding deformation to the lattice
     filename = 'POSCAR'
     o = open(out_path+filename, "w+")
-    o.write(poscar_info[0])                     # writing poscar header
-    o.write('1.0\n')                            # writing constant by which all lattice parameters are multiplied - we always want 1.0
-                                                # which is not always true in awflow POSCAR files.
+    o.write(poscar_info[0])                     # Writing poscar header
+    o.write(poscar_info[1])                     # Writing constant by which all lattice parameters are multiplied sometimes
+                                                # in aflow it doesn't equal 1.0 - yet it doesn't seem to indicate a deformation,
+                                                # just a stupid way the database keeps files in.
+                                                # For now I mark them as warning in screener.py - but maybe I should be remaking POSCARs
+                                                # so that they are consistent with this constang = 1.0 and changing lattice matrix below accordingly
     o.write('   %.14f  %.14f  %.14f\n' % ((lattice_matrix[0,0]), (lattice_matrix[0,1]), (lattice_matrix[0,2])))
     o.write('   %.14f  %.14f  %.14f\n' % ((lattice_matrix[1,0]), (lattice_matrix[1,1]), (lattice_matrix[1,2])))
     o.write('   %.14f  %.14f  %.14f\n' % ((lattice_matrix[2,0]), (lattice_matrix[2,1]), (lattice_matrix[2,2])))

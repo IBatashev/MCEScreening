@@ -88,7 +88,9 @@ def duplicates(ID):
     # compare atomic positions list...
     return
 
-def screener_before(datalist): # I feel that performance may not be optimal - two loops do not seem reasonable but I have to test if working with two df simultaneously is faster...
+def screener_before(datalist):
+    # I feel that performance may not be optimal - making two loops does not seem reasonable
+    # but I have to test if working with two df simultaneously is faster...
     """First main function that works with screening database. Used to apply criteria thet don't require calculations.
     Loops over all database entries and applies initial screening parameters/checks.
     Creates a shorter database that we will use for submitting calculations"""

@@ -22,3 +22,9 @@ def Make_Sample_set_for_MCEScreening_tests(random_seed=1, sample_size=4):
         shutil.copy('../Database/datadir/'+str(item),new_datadir+str(item))                     # and copy POSCAR files from full datadir to new smaller one
 
 Make_Sample_set_for_MCEScreening_tests(1, 4)
+
+# Fe2P 6295 6296
+# FeRh 6373 - 6376
+# LaFeSi
+# LaSrMnO3
+# MnCoP

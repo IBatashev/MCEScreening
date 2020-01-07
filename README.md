@@ -4,19 +4,32 @@ Screening for high-performance magnetocaloric materials using information from c
 Written in Python3
 
 Essentially MCEScreening consists of two parts:
-1. _Screener_ - used to download data from Aflow and apply various screening criteria.   
-2. _Runner_ - a set of scripts used to run various vasp calculations. These work on cluster nodes, and preferably only 
-have a very basic set of dependencies to avoid the need to insatal many extra packages.
+1. _*Screener*_ - used to download data from Aflow and apply various screening criteria.   
+2. _*Runner*_ - a set of python scripts to create VASP input files for all calculations. These work on cluster nodes, 
+and preferably only have a very basic set of dependencies to avoid the need to insatal many extra packages.
+A bash script is then submited to queueing system to execute each calculation.
 
-TODO:
-- Test if sym_detector works as intended, if not lower symmetry tolerance?
-- Add scripts for auotomatic processing - see 'custodian' package
-- Volume increase constant in initial POSCAR from aflow may cause incorrect estimate of moments! need to check for it
-- Add check to make sure direct coordinates are supplied in initial POSCAR from aflow (POSCAR_maker)
-- All latice deformations have to be properly tested
-- add error messages/exceptions everywhere so we can troubleshoot
-- download ~8000 files again and sort them
-- fix rhombohedral lattice deformation
-- fill in all mag moments in recommended_PAW.csv
+Database ChangeLog
+---
+| # | Date Created | Number of entries | Comment |
+|---|---|---|---|
+|1|23.09.19|8044|As of now mostly useless. Downloaded in 3 parts and then manually combined, archive also contains initial python scripts and some ‘in progress’ files. |
+|2|04.12.19|8970|Relatively adequate second attempt. Reworked list of allowed elements – but still with radioactive...Unfortunately, missing python script used for downloading it.|
+|3|11.12.19| 28 |Small test subset made from 2 with python script included in archive. Random seed  = 1|
+|4|22.12.19|8970|More files now – separate folders including aflow files (which contain all possible non-file tags). Instead of CONTCARs we now have aflow_structure files for both before and after relaxation containg a LOT of structural info. Contains python script used for downloading. Includes python script used for downloading. Aflow files were downloaded a week |
+|5|07.01.19|8603|Updated version of 4, radioactive things now removed. Includes script that was used to remove entries containing  U, Po, Th|
+TODO
+---
+- Check if all ENCUTS are correct in recommended_PAW.csv look them up in POTCAR files
 - check if all necessary POTCARs for elements are present, maybe move to new folder - but probably not
-
+- Fill in all mag moments in recommended_PAW.csv - from INCARS - parse all in a table get averages? OR from slater curve and "_intuition_"
+- Redo POSCAR_maker - write lattice matrix from lattice parameters and symmetry instead of copying from original POSCAR
+- Add check to make sure direct coordinates are supplied in initial POSCAR from aflow (POSCAR_maker)
+- Test if mag_sites works as intended, if not lower symmetry tolerance? Also no longer need to employ ase or phonopy - just grab wyckof from edata.relax.out
+- ~~add ase package to project directory~~ with new info from database I no longer really need ase 
+- Fix lattice recognition
+- add error messages/exceptions everywhere so we can troubleshoot
+- Add scripts for auotomatic processing - see 'custodian' package
+---
+    nn and nnn distance as creening parameter - check
+    shifting magnetic sublattices against each other?

@@ -34,8 +34,9 @@ result = search(catalog='icsd', batch_size=100
              (K.species != "Ar") &
              (K.species != "Kr") &
              (K.species != "Xe")
-             #  Elements afte Bi not mentioned this list are not in aflow database at all.
-             # It contains only first 83 elements, so they are sorted out by default.
+             #  ~~Elements afte Bi not mentioned this list are not in aflow database at all. contains only first 83 elements, so they are sorted out by default.~~
+             #  Unfortunately U, Pu and Th are there despite no mention of Aflow GUI :(
+             #  maybe something else is also possible in database wider than ICSD
       ).filter(K.files == "CONTCAR.relax.vasp"
              # This is only to look at entries that have POSCAR.
              # This selection is not really necessary as it seems that all entries in FULL aflolib have POSCAR.relax structure file
@@ -54,13 +55,16 @@ def downloader(counter=0, default_decounter=250):
     counter - The search entry where we start downloading from (technically we always want zero, only added for flexebility)
     decounter - number of entries we download in a batch before waiting for some time in order not to overburden aflow with requests"""
 
-    with open('./datalist.csv', 'a') as f:        # we create a csv file to write info into
-        f.write("ID,compound,lattice_system,spacegroup,volume_cell,moment_cell,mag_field,mag_sites,comment1,comment2")
+    # with open('./datalist_more_info_check.csv', 'a') as f:        # we create a csv file to write info into
+    #     f.write("ID,aflow_ID,compound,nergy_cell,energy_atom,lattice_system,'Bravais_lattice','original_Bravais_lattice',spacegroup,geometry,species,volume_cell,moment_cell,mag_field,mag_sites,comment1,comment2\n")
     decounter = default_decounter
     while counter <= totalN:
-        result[counter].files["CONTCAR.relax.vasp"]("./downloaded_data/"+str(counter))
-        newrow = str(counter)+','+ str(result[counter].compound)+','+str(result[counter].lattice_system_relax.strip('\n'))+','+ str(result[counter].spacegroup_relax)+','+str(result[counter].volume_cell)+','+ str(result[counter].spin_cell)+','+'0,0\n'
-        with open('./datalist.csv', 'a') as f:
+        # result[counter].files["edata.relax.out"]("./downloaded_data_structure_relaxed/"+str(counter))
+        # result[counter].files["edata.orig.out"]("./downloaded_data_structure/"+str(counter))
+        # result[counter].files["INCAR.bands"]("./downloaded_data_incars/" + str(counter))
+        result[counter].files["aflowlib.out"]("./downloaded_data_aflow/" + str(counter))
+        newrow = str(counter)+','+str(result[counter].auid)+','+ str(result[counter].compound)+','+ str(result[counter].energy_atom)+','+ str(result[counter].energy_cell)+','+str(result[counter].lattice_system_relax.strip('\n'))+','+str(result[counter].Bravais_lattice_relax.strip('\n'))+','+str(result[counter].Bravais_lattice_orig.strip('\n'))+','+ str(result[counter].spacegroup_relax)+','+ str(result[counter].geometry).replace(',', ';')+','+str(result[counter].species).replace(',', ';')+','+str(result[counter].volume_cell)+','+ str(result[counter].spin_cell)+','+'0'+','+'0'+','+''+','+'\n'
+        with open('./datalist_more_info_check.csv', 'a') as f:
             f.write(newrow)
         if decounter == 0:
             print(counter, '   ', (counter/totalN)*100, '% done') # just a simple progress indicator (may try some fancy stuff later...)
@@ -69,4 +73,4 @@ def downloader(counter=0, default_decounter=250):
         counter = counter + 1
         decounter = decounter - 1
 
-downloader()
+# downloader(7687,500)
