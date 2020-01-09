@@ -28,7 +28,8 @@ TODO
 ---
 - Perform initial screening - calculate internal fileds and sites
 - Ask Gilles about W_pv and At_d in PBE .54
-- Redo magsites calculator 
+- Figure out what elements should be in mag_site calculator magnetic list
+- Problem with structure files - ABC... instead of elements, mag sites is affected and other POSCAR-related files
 - Redo POSCAR_maker (and all other that were based on POSCAR file from aflow) - write lattice matrix from lattice parameters and symmetry instead of copying from original POSCAR
 - Add check to make sure direct coordinates are supplied in initial POSCAR from aflow (POSCAR_maker)
 - Test if mag_sites works as intended, if not lower symmetry tolerance? Also no longer need to employ ase or phonopy - just grab wyckof from edata.relax.out

@@ -38,7 +38,11 @@ def mag_sites_calculator(ID):
     ### List of Magnetic Atoms
     # need to add all of them later
     magnetic = ['Cu','Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Gd']
+    rename_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
     elemlist = []
+    site_counter = 0
+
+    df = pd.read_csv('../Database/datalist.csv', index_col=0, sep=',')
 
     #### NEW APPROACH ###
     structure_file = '../Database/datadir_structure/' + str(ID)         # still need to decide weather I should
@@ -51,17 +55,17 @@ def mag_sites_calculator(ID):
                         break
                     else:
                         elem = line.split()[3]
+                        if elem in rename_list:
+                            n = rename_list.index(elem)
+                            temp_line = (df.loc[ID, 'species']).strip('[').strip(']').strip(' ')
+                            temp_line2 = temp_line.replace("'", "")
+                            species_list = np.asarray(temp_line2.split('; '))
+                            elem = species_list[n]
                         elemlist = np.append(elemlist, elem)
-    site_counter = 0
     for k in elemlist:
         if k in magnetic:
             site_counter = site_counter + 1
-    return site_counter
-
-
-    # open structure file look up line " Representative Wyckoff positions"
-    # Parse until line WYCCAR
-    # check resulting list against list of magnetic elements
+    return site_counter, elemlist
 
     #####################
 
@@ -69,7 +73,6 @@ def mag_sites_calculator(ID):
     # poscar_file = '../Database/poscars_for_tests/'+str(ID) # for tests CHANGE LATER
     #
     # poscar_file = '../Database/sample_datadir/'+str(ID)
-
 
     # ### Open POSCAR with phonopy and get Wyckoff letters and chemical symbols from it
     # # maybe should try with ase????????
@@ -168,5 +171,5 @@ def screener_after(datalist):
 
 
 # screener_before('../Database/sample_datalist.csv')
-print(mag_sites_calculator(1938))
+print(mag_sites_calculator(13)) #1938
 # print(check_universal_scaling_factor(24))
