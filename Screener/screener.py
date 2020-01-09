@@ -3,6 +3,7 @@ import phonopy
 from ase import io
 import shutil
 import os
+import numpy as np
 
 from tools import POSCAR_reader
 
@@ -32,41 +33,69 @@ def check_universal_scaling_factor(ID):
 
 def mag_sites_calculator(ID):
     """Determines how many unique magnetic sites are present in the structure.
-    Takes ID as input, looks up poscar file in the datadir and returns number of sites as integer"""
-
-    # poscar_file = '../Database/datadir/'+str(ID)
-    poscar_file = '../Database/poscars_for_tests/'+str(ID) # for tests CHANGE LATER
-
-    poscar_file = '../Database/sample_datadir/'+str(ID)
+    Takes ID as input, looks up structure file in the datadir and returns number of unique sites as integer"""
 
     ### List of Magnetic Atoms
     # need to add all of them later
     magnetic = ['Cu','Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Gd']
+    elemlist = []
 
-    ### Open POSCAR with phonopy and get Wyckoff letters and chemical symbols from it
-    # maybe should try with ase????????
-    ph = phonopy.load(unitcell_filename=poscar_file)
-    sym_list = ph.get_symmetry().get_Wyckoff_letters()
-    at_type_len = len(ph.unitcell.get_positions())
-    at_type_list = []
-
-    ### Open POSCAR and get element symbols
-    poscar_content = POSCAR_reader.read(poscar_file)
-
-    for i in range(7, 7 + at_type_len):             # POSCAR files from aflowlib have 7 lines of text before atomic coordinates! so we start at line 8
-        l = str.split(poscar_content[i])            # Aflow POSCAR has symbols for elements listed after their coordinate
-        at_type_list.append(str(l[3]))              # create a list of all elements in the structure
-
-    ### Check how many unique MAGNETIC sites are present
-    at_list = []
-    for num, val in enumerate(sym_list):            # build list of magnetic positions
-        if at_type_list[num] in magnetic:
-           at_list.append(val)
-    num_unique = len(set(at_list))                  # check how many are unique
-    return num_unique                               # return resulting number of sites
+    #### NEW APPROACH ###
+    structure_file = '../Database/datadir_structure/' + str(ID)         # still need to decide weather I should
+                                                                        # use relaxed or non-relaxed structure for this - non relaxed may give overestimaded positions, if symmetry was lowered hz
+    with open(structure_file, 'r') as f:
+        for line in f:
+            if 'Representative' in line:
+                for line in f:  # now you are at the lines you want
+                    if 'WYCCAR' in line:
+                        break
+                    else:
+                        elem = line.split()[3]
+                        elemlist = np.append(elemlist, elem)
+    site_counter = 0
+    for k in elemlist:
+        if k in magnetic:
+            site_counter = site_counter + 1
+    return site_counter
 
 
-    ### Another attempt to do same as above need to test both further
+    # open structure file look up line " Representative Wyckoff positions"
+    # Parse until line WYCCAR
+    # check resulting list against list of magnetic elements
+
+    #####################
+
+    # poscar_file = '../Database/datadir/'+str(ID)
+    # poscar_file = '../Database/poscars_for_tests/'+str(ID) # for tests CHANGE LATER
+    #
+    # poscar_file = '../Database/sample_datadir/'+str(ID)
+
+
+    # ### Open POSCAR with phonopy and get Wyckoff letters and chemical symbols from it
+    # # maybe should try with ase????????
+    # ph = phonopy.load(unitcell_filename=poscar_file)
+    # sym_list = ph.get_symmetry().get_Wyckoff_letters()
+    # at_type_len = len(ph.unitcell.get_positions())
+    # at_type_list = []
+    #
+    # ### Open POSCAR and get element symbols
+    # poscar_content = POSCAR_reader.read(poscar_file)
+    #
+    # for i in range(7, 7 + at_type_len):             # POSCAR files from aflowlib have 7 lines of text before atomic coordinates! so we start at line 8
+    #     l = str.split(poscar_content[i])            # Aflow POSCAR has symbols for elements listed after their coordinate
+    #     at_type_list.append(str(l[3]))              # create a list of all elements in the structure
+    #
+    # ### Check how many unique MAGNETIC sites are present
+    # at_list = []
+    # for num, val in enumerate(sym_list):            # build list of magnetic positions
+    #     if at_type_list[num] in magnetic:
+    #        at_list.append(val)
+    # num_unique = len(set(at_list))                  # check how many are unique
+    # return num_unique                               # return resulting number of sites
+
+    #########################################
+
+    ### Another attempt to do same as above need to test both further ###
 
     # print(ph.get_symmetry().get_dataset())
     # for i, vall in enumerate(at_type_list):
@@ -75,6 +104,8 @@ def mag_sites_calculator(ID):
     #     print(sym_point)
     # print(sym_list)
     # print(at_type_list)
+
+    #########################################
 
 def mag_sites_difference(ID):
     # Works after calculation, reads OUTCAR and checks values of moments for different magnetic sites and returns biggest
@@ -136,6 +167,6 @@ def screener_after(datalist):
         #...mag field again - to correct for erroneously scalled compounds
 
 
-screener_before('../Database/sample_datalist.csv')
-# print(mag_sites_calculator(1770))
+# screener_before('../Database/sample_datalist.csv')
+print(mag_sites_calculator(1938))
 # print(check_universal_scaling_factor(24))
