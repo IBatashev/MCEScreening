@@ -1,9 +1,13 @@
-def read(poscar_file):
-    """Takes POSCAR file as input and returns it's content as list of strings"""
+def read(structure_file):
+    """Takes structure file as input and returns section containing POSCAR as list of strings"""
 
-    poscar = open(poscar_file, "r")
     poscar_content = []
-    for line in poscar:
-        poscar_content.append(line)
-    poscar.close()
+    with open(structure_file, 'r') as f:  # need to get POSCAR content from big structure file
+        for line in f:
+            if 'SPRIM' in line:  # subsection we are interested in goes after line with word "Representative"
+                for line in f:  # now you are at the lines you want
+                    if 'SCONV' in line:  # Ends before line with "WYCCAR"
+                        break
+                    else:
+                        poscar_content.append(line)
     return poscar_content
