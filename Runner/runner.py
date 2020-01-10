@@ -165,10 +165,10 @@ os.makedirs(path)           #
 
 ### We expect to find a Database folder in parent directory that contains datadir with POSCAR files
 # poscar_file = '../Database/datadir/'+str(ID)
-poscar_file = '../Database/sample_datadir/'+str(ID)
+structure_file = '../Database/sample_datadir/'+str(ID)
 
 ### Take all information from poscar as list of strings:
-poscar_content = POSCAR_reader.read(poscar_file)
+poscar_content = POSCAR_reader.read(structure_file)
 
 ### Use ase to get Bravais lattice type from lattice given in POSCAR
 lattice_matrix = np.zeros([3, 3])

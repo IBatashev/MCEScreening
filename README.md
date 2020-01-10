@@ -13,7 +13,7 @@ Notes
 ---
 - Moments for MAGMOM are now chosen from Slater curves for magnetic elements (3d and 4d) all other elements set to 1.0 (maybe change to 0.5 - need to check after test runs)
 - Potentials from PBE .54 (according to recommendations from vaspwiki). ENCUT set as ENMAX*1.3
-
+- Magnetic field is calculated for PRIMITIVE lattice not the conventional one used in calculations, still the result should hold
 Database ChangeLog
 ---
 | # | Date Created | Number of entries | Comment |
