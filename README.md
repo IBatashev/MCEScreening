@@ -5,9 +5,8 @@ Written in Python3
 
 Essentially MCEScreening consists of two parts:
 1. _*Screener*_ - used to download data from Aflow and apply various screening criteria.   
-2. _*Runner*_ - a set of python scripts to create VASP input files for all calculations. These work on cluster nodes, 
-and preferably only have a very basic set of dependencies to avoid the need to insatal many extra packages.
-A bash script is then submited to queueing system to execute each calculation.
+2. _*Creator*_ - a set of python scripts to create VASP input files for all calculations. Can be run locally (and transfer resulting file structure to cluster) or on cluster directly.
+3. _*Executor*_ - A bash script is then submited to queueing system to execute each calculation.
 
 Notes
 ---

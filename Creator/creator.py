@@ -12,7 +12,7 @@ import POTCAR_maker
 
 
 def single_run(def_type, def_matrix):
-    """Creates files for a single VASP run, executes job and cleans up"""
+    """Creates files for a single VASP run"""
 
     path_to_calc = path + def_type + "/"
     os.mkdir(path_to_calc)
@@ -20,9 +20,6 @@ def single_run(def_type, def_matrix):
     # INCAR_maker.writer(path_to_calc, poscar_content)
     # POTCAR_maker.writer(path_to_calc, poscar_content)
     # job maker
-    # run job :: either through a shell script subprocess.call(['./test.sh'])  or custodian package
-    # save important results
-    # os.remdir(path_to_calc)
 
 def undeformed_lattice():
     """Creates all necessary files to run a VASP job for initial undeformed structure"""
@@ -136,7 +133,7 @@ def deformed_lattice(lattice_type):
     else: print("Error! Unknown Lattice type for "+str(ID))
 
 def parseArguments():
-    """Function for parsing input argumens necessary for runner.py to work.
+    """Function for parsing input argumens necessary for creator.py to work.
     We expect to at least get ID (name of POSCAR) to work with.
     By default deformation coefficient is set to 1.2"""
 
