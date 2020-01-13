@@ -26,6 +26,7 @@ Database ChangeLog
 TODO
 ---
 - Perform initial screening - calculate internal fileds and sites
+- duplicate removal
 - Ask Gilles about W_pv and At_d in PBE .54
 - Figure out what elements should be in mag_site calculator magnetic list
 - Problem with structure files - ABC... instead of elements, mag sites is affected and other POSCAR-related files

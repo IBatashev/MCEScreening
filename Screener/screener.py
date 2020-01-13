@@ -1,26 +1,29 @@
 import pandas as pd
-import phonopy
-from ase import io
 import shutil
 import os
 import numpy as np
+import tqdm
 ### LOCAL IMPORTS ###
-from tools import POSCAR_reader
+import POSCAR_reader
+
 
 ### Setting which database we work with ###
 wdatadir_structure = '../Database/datadir_structure/'
 wdatadir_aflow = '../Database/datadir_aflow/'
 wdatadir_incars = '../Database/datadir_incars/'
 wdatalist = '../Database/datalist.csv'
+wdatalist_u = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
+
 
 def calculate_mag_field(moment, volume):
     """Takes cell moment in [mB] and volume in [A^3] and returns value for internal magnetic field in [T]"""
 
     pi = 3.141592653
-    mu0 = 4*pi*10**(-7)                        # Vacuum permeability in H/m
-    mB = 9.2741*10**(-24)                      # Bohr magneton value in J/T
-    field = (mu0*moment*mB)/(volume*10**(-30)) # Formula for internal magnetic field in Tesla
+    mu0 = 4*pi*10**(-7)                         # Vacuum permeability in H/m
+    mB = 9.2741*10**(-24)                       # Bohr magneton value in J/T
+    field = (mu0*moment*mB)/(volume*10**(-30))  # Formula for internal magnetic field in Tesla
     return field
+
 
 def check_universal_scaling_factor(ID):
     """Checks if universal scaling factor constant was modified in POSCAR (!= 1.0) for the structure
@@ -34,25 +37,28 @@ def check_universal_scaling_factor(ID):
     else:
         return False, ''
 
+
 def mag_sites_calculator(ID):
     """Determines how many unique magnetic sites are present in the structure.
     Takes ID as input, looks up structure file in the datadir and returns number of unique sites as integer"""
 
     ### List of Magnetic Atoms
-    # need to add all of them later
     # magnetic = ['Cu','Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Gd']
-    magnetic = [ 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', # Sc, Y, and everythong else is considered not magnetic
-                 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', # we sieve out Cd at earliear step, so I could have ommitted it from this list but this approach is more "universal"
-                 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu']
-    bad_notation = False                                                  # sometimes aflow files have alphabet instead of element symbols in structure POSCAR I call it bad notation
-    rename_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'] # A list for fixing bad notation
-                                                                          # I don't expect there to be a composition with more than 11 components so here I stop at K
-    elemlist = []
-    site_counter = 0
 
+    # magnetic = [ 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', # Sc, Y, and everythong else is considered not magnetic
+    #              'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', # we sieve out Cd at earliear step, so I could have ommitted it from this list but this approach is more "universal"
+    #              'La', 'Ce', 'Pr', 'Nd', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu']
+
+    magnetic = [ 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu',  # Sc, Y, and everythong else is considered not magnetic
+                 'Nb', 'Mo', 'Ru', 'Rh', 'Pd', # we sieve out Cd at earliear step, so I could have ommitted it from this list but this approach is more "universal"
+                 'Ce', 'Pr', 'Nd', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb']
+    bad_notation = False                                                    # sometimes aflow files have alphabet instead of element symbols in structure POSCAR I call it bad notation
+    rename_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']   # A list for fixing bad notation
+                                                                            # I don't expect there to be a composition with more than 11 distinctive components so here I stop at K
+
+    eltable = np.empty([0, 2])
     df = pd.read_csv(wdatalist, index_col=0, sep=',')
 
-    #### NEW APPROACH ###
     structure_file = wdatadir_structure + str(ID)         # still need to decide weather I should
                                                           # use relaxed or non-relaxed structure for this - non relaxed may give overestimaded positions, if symmetry was lowered hz
     with open(structure_file, 'r') as f:    # need to get all atoms from Wyckoff subsection of structure file
@@ -63,6 +69,7 @@ def mag_sites_calculator(ID):
                         break
                     else:
                         elem = line.split()[3]  # element symbol is after Wyckoff x y z coordinates so 4th item in list
+                        wyckoff = line.split()[4]+line.split()[5]
                         if elem == 'A':         # check if notation is shitty - in this case first element is represented with letter A (fortunately there is no element in periodic table labeled with A)
                             bad_notation = True
                         if bad_notation == True:# Apply correction for bad notation replacing all alphabet letters with proper chemical symbols taken from list of elements in composition
@@ -71,13 +78,15 @@ def mag_sites_calculator(ID):
                             temp_line2 = temp_line.replace("'", "")
                             species_list = np.asarray(temp_line2.split('; '))
                             elem = species_list[n]
-                        elemlist = np.append(elemlist, elem)
-    for k in elemlist:
-        if k in magnetic:
-            site_counter = site_counter + 1
+                        eltable = np.append(eltable, [[elem, wyckoff]], axis=0)
+    # This section with masks probably could be done better and shorter but with such smal arrays it shouldn't matter much
+    mask = np.in1d(eltable[:, 0], magnetic)  # Check what entries in Wyckoff list are in list of magnetic atoms
+    eltable2 = eltable[mask]                 # new array of only magnetic ones using previous mask
+    unique_keys, mask2 = np.unique(eltable2[:, 1], return_index=True)  # check what entries of the new array have unique wyckoff sites - creates a list of indicies corresponding to said entries
+    site_counter = np.size(eltable2[mask2], axis=0)                    # get number of unique sites counting number of obtained indicies
     return site_counter
 
-    #####################
+    ########## Discontinued old versions ###########
 
     # poscar_file = '../Database/datadir/'+str(ID)
     # poscar_file = '../Database/poscars_for_tests/'+str(ID) # for tests CHANGE LATER
@@ -120,22 +129,36 @@ def mag_sites_calculator(ID):
 
     #########################################
 
+
 def mag_sites_difference(ID):
     # Works after calculation, reads OUTCAR and checks values of moments for different magnetic sites and returns biggest
     # difference between moments of sublattices or just all significantly different moments...
     return
 
-def duplicates(ID):
-    # report how many different lattice types are there for the chem formula => may indicate instability
-    # for same structure only leave one, but how we decide...
-    # Also sometimes reports for structure types are same just lower level symmetry... how do we deal with it? maybe
+
+def duplicates(datalist):
+    """Remove duplicates from datalist. Entries are considered duplicates if they have the same composition AND same
+     spacegroup. Duplicates with different spacegroups are kept - a new field is added to datalist counting how many
+     structural variations are present for same composition (May serve as indication of instability)."""
+
+    # Sometimes reports for structure types are same just lower level symmetry... how do we deal with it? maybe
     # compare atomic positions list...
-    return
+
+    # I will not remove items with doubled etc chemical structure e.g. both Fe2O and Fe4O2 will remain as in some cases
+    # in aflow new wyckoff sites were attributed to these extra atoms and I am not confident in judging how significant
+    # they are. Perhaps a more thorough check? For now it doesn't matter but for bigger database it may become important
+    # to reduce sample size as much as possible
+
+    df = pd.read_csv(datalist, index_col=0, sep=',')
+    df = df.drop_duplicates(subset=['compound', 'spacegroup'])  # remove all entries with exact same spacegroup and composition - their difference is most likely a sligh change of lattice parameters
+    df['polymorphs'] = (df.groupby('compound').compound.transform(lambda x: x.duplicated(keep=False).sum()))  # check how many entries still have the same composition - are polymorphs with diffeent structures - and count them
+    df.to_csv(datalist.replace('.csv', '_no.duplicates.csv'))
+
 
 def screener_before(datalist):
     # I feel that performance may not be optimal - making two loops does not seem reasonable
     # but I have to test if working with two df simultaneously is faster...
-    """First main function that works with screening database. Used to apply criteria thet don't require calculations.
+    """First main function that works with screening database. Used to apply criteria that don't require calculations.
     Loops over all database entries and applies initial screening parameters/checks.
     Creates a shorter database that we will use for submitting calculations"""
 
@@ -144,62 +167,54 @@ def screener_before(datalist):
     min_mag_field = 0.45
 
     df = pd.read_csv(datalist, index_col=0, sep=',')
-    for item in df.index.tolist():
-        ### Write number of sites into datalist:
-        df.loc[item, 'mag_sites'] = mag_sites_calculator(item)
+    with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
+        pbar.set_description("Processing datalist")
+        for item in df.index.tolist():
+            pbar.update(1)                              # Updating progress bar at each step
+            ### Write number of sites into datalist:
+            df.loc[item, 'mag_sites'] = mag_sites_calculator(item)
         ### Write internal magnetic field into datalist:
-        df.loc[item, 'mag_field'] = calculate_mag_field(df.loc[item, 'moment_cell'], df.loc[item, 'volume_cell'])
+            df.loc[item, 'mag_field'] = calculate_mag_field(df.loc[item, 'moment_cell'], df.loc[item, 'volume_cell'])
         ### Check if universal scaling factor is 1.0, othervise results for magnetic field calculaded using aflow data are unreliable
-        is_scalled, scaling_factor = check_universal_scaling_factor(item)
-        if is_scalled == True:
-            df.loc[item, 'comment1'] = 'scaling factor = ' + str(scaling_factor)
-        ### Work with duplicates...
+            is_scalled, scaling_factor = check_universal_scaling_factor(item)
+            if is_scalled == True:
+                df.loc[item, 'comment1'] = 'scaling factor = ' + str(scaling_factor)
+         ### Wrire an updated datalist back to file
+        df.to_csv(datalist.replace('.csv', '_updated.csv'))
 
-        print(item)
-     ### Wrire an updated datalist back to file
-    df.to_csv(datalist)
+        # ### Write the shorter sieved database to a separate file and copy relevant POSCAR to new datadir
+        # if os.path.exists('../Database/datadir_sieved/'):  # Prepare new datadir folder
+        #     shutil.rmtree('../Database/datadir_sieved/')  # (cleans old one if it already existed)
+        # os.makedirs('../Database/datadir_sieved/')
+
+        ### drops everything that does not fit the criteria, creating new datalist file at each sieve
+    sieve(datalist.replace('.csv', '_updated.csv'), 'mag_field', min_mag_field)
+    sieve(datalist.replace('.csv', '_updated_sieved.mag.field.csv'), 'mag_sites', min_site_number)
+        ### drops duplicates, creates new datalist file __ PERHAPS THIS SHOULD BE FIRST STET TO LOWER FURTHER WORKLOAD
+    duplicates(datalist.replace('.csv', '_updated_sieved.mag.field_sieved.mag.sites'))
+    print("Done")
 
 
-    # ### Write the shorter sieved database to a separate file and copy relevant POSCAR to new datadir
-    # if os.path.exists('../Database/datadir_sieved/'):  # Prepare new datadir folder
-    #     shutil.rmtree('../Database/datadir_sieved/')  # (cleans old one if it already existed)
-    # os.makedirs('../Database/datadir_sieved/')
+def sieve(datalist, sieve_type, sieve_size):
+    """Removes entries from datalist according to selected sieving criteria"""
 
-    ### loops through database and drops everything that does not fit the criteria
-    dropper(datalist, 'mag_filed', min_mag_field)
-    # dropper(datalist, 'mag_sites', min_site_number)
-
-def dropper(datalist, sieve_type, sieve_size):
-    """Removes entries from datalist according to selected sieving ctriteria"""
-
+    print("Sieving by " + str(sieve_type) + " with cutoff set as " + str(sieve_size))
     df = pd.read_csv(datalist, index_col=0, sep=',')
     for item in df.index.tolist():
         if df.loc[item, sieve_type] <= sieve_size:
             df = df.drop([item], axis=0)
-        # else: # copies corresponding  files to a new smaller datadir that we will move to cluster
-        #     shutil.copy('../Database/datadir/'+str(item), '../Database/datadir_sieved/'+str(item))
-    df.to_csv(datalist.replace(".csv", '_sieved' + sieve_type + '.csv'))
+    df.to_csv(datalist.replace(".csv", '_sieved.' + sieve_type.replace('_', '.') + '.csv'))
+
 
 def screener_after(datalist):
-    # Second main function used for applying criteria obtained after calculations ad performing corresponding checks
+    # Second main function used for applying criteria obtained after calculations and performing corresponding checks
     df = pd.read_csv(datalist, index_col=0, sep=',')
     for item in df.index.tolist():
         mag_sites_difference(item)
         #...mag field again - to correct for erroneously scalled compounds
 
 
-### TEMP WORKING AREA ###
-# df = pd.read_csv('../Database/datalist.csv', index_col=0, sep=',')
-# # f = open('site_count_list.txt', 'w+')
-# table = []
-# for item in df.index.tolist():
-#     table = np.append(table, mag_sites_calculator(item))
-#     print(item)
-# np.savetxt('site_count_list_relaxed.txt', table, delimiter='\n')
-
-# print(mag_sites_calculator(0)) #1938
-# print(check_universal_scaling_factor(24))
-
-# screener_before(wdatalist)
-
-print(POSCAR_reader.read(wdatadir_structure+'0'))
+###  WORKING AREA ###
+udatalist = '../Database/datalist_updated_sieved.mag.field.csv'
+sieve(udatalist, 'mag_sites', 1)
+# duplicates(udatalist.replace('.csv', '_sieved.mag.sites'))

@@ -2,13 +2,13 @@ import os
 import numpy as np
 from ase import geometry
 import argparse
-import subprocess
 import shutil
 
 import INCAR_maker
 import POSCAR_maker
 import POSCAR_reader
 import POTCAR_maker
+from tools import POSCAR_reader
 
 
 def single_run(def_type, def_matrix):

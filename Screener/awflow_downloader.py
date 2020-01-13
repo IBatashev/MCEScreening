@@ -19,6 +19,7 @@ result = search(catalog='icsd', batch_size=100
              (K.species != "Au") &
              (K.species != "In") &
              ### Health Hazard:
+             # is Tc in Aflow?
              (K.species != "Be") &
              (K.species != "As") &
              (K.species != "Cd") &
@@ -42,27 +43,27 @@ result = search(catalog='icsd', batch_size=100
              # This selection is not really necessary as it seems that all entries in FULL aflolib have POSCAR.relax structure file
              # (165705 hits with; same 165705 hits without)
       ).filter((K.spin_cell > 0) | (K.spin_cell < 0)
-    #          # only find entries with non-zero moment not sure if one need to consider <0 though
+             # only find entries with non-zero moment
       ).filter(K.enthalpy_cell < 0)
              # entalpy must me negative - othervise structure would not form in real life
 
 totalN = len(result)
 print(totalN)
 
-def downloader(counter=0, default_decounter=250):
-    """Function used to download POSCAR files and fill up datalist with information from Aflow
+def downloader(counter=0, default_decounter=500):
+    """Function used to download files and fill up datalist with information from Aflow
     Works with search result, has two parameters:
     counter - The search entry where we start downloading from (technically we always want zero, only added for flexebility)
     decounter - number of entries we download in a batch before waiting for some time in order not to overburden aflow with requests"""
 
-    # with open('./datalist_more_info_check.csv', 'a') as f:        # we create a csv file to write info into
-    #     f.write("ID,aflow_ID,compound,nergy_cell,energy_atom,lattice_system,'Bravais_lattice','original_Bravais_lattice',spacegroup,geometry,species,volume_cell,moment_cell,mag_field,mag_sites,comment1,comment2\n")
+    with open('./datalist_more_info_check.csv', 'a') as f:        # we create a csv file to write info into
+        f.write("ID,aflow_ID,compound,nergy_cell,energy_atom,lattice_system,'Bravais_lattice','original_Bravais_lattice',spacegroup,geometry,species,volume_cell,moment_cell,mag_field,mag_sites,comment1,comment2\n")
     decounter = default_decounter
     while counter <= totalN:
-        # result[counter].files["edata.relax.out"]("./downloaded_data_structure_relaxed/"+str(counter))
-        # result[counter].files["edata.orig.out"]("./downloaded_data_structure/"+str(counter))
-        # result[counter].files["INCAR.bands"]("./downloaded_data_incars/" + str(counter))
-        result[counter].files["aflowlib.out"]("./downloaded_data_aflow/" + str(counter))
+        result[counter].files["edata.relax.out"]("./downloaded_data_structure_relaxed/"+str(counter))  # Structural informaion file after relaxation
+        result[counter].files["edata.orig.out"]("./downloaded_data_structure/"+str(counter))           # Structural information file before relaxation (very optional one only need a single structure file)
+        # result[counter].files["INCAR.bands"]("./downloaded_data_incars/" + str(counter))             # INCAR file not necessary for screening, optional download to gather more info on calculations done by aflolib
+        result[counter].files["aflowlib.out"]("./downloaded_data_aflow/" + str(counter))               # File containing ALL information on entry, same (but less tags) info goes into datalist so optional, but useful download
         newrow = str(counter)+','+str(result[counter].auid)+','+ str(result[counter].compound)+','+ str(result[counter].energy_atom)+','+ str(result[counter].energy_cell)+','+str(result[counter].lattice_system_relax.strip('\n'))+','+str(result[counter].Bravais_lattice_relax.strip('\n'))+','+str(result[counter].Bravais_lattice_orig.strip('\n'))+','+ str(result[counter].spacegroup_relax)+','+ str(result[counter].geometry).replace(',', ';')+','+str(result[counter].species).replace(',', ';')+','+str(result[counter].volume_cell)+','+ str(result[counter].spin_cell)+','+'0'+','+'0'+','+''+','+'\n'
         with open('./datalist_more_info_check.csv', 'a') as f:
             f.write(newrow)
