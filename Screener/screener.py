@@ -8,7 +8,7 @@ import POSCAR_reader
 
 
 ### Setting which database we work with ###
-wdatadir_structure = '../Database/datadir_structure/'
+wdatadir_structure = '../Database/datadir_structure_relaxed/'
 wdatadir_aflow = '../Database/datadir_aflow/'
 wdatadir_incars = '../Database/datadir_incars/'
 wdatalist = '../Database/datalist.csv'
@@ -191,14 +191,14 @@ def screener_before(datalist):
     sieve(datalist.replace('.csv', '_updated.csv'), 'mag_field', min_mag_field)
     sieve(datalist.replace('.csv', '_updated_sieved.mag.field.csv'), 'mag_sites', min_site_number)
         ### drops duplicates, creates new datalist file __ PERHAPS THIS SHOULD BE FIRST STET TO LOWER FURTHER WORKLOAD
-    duplicates(datalist.replace('.csv', '_updated_sieved.mag.field_sieved.mag.sites'))
+    duplicates(datalist.replace('.csv', '_updated_sieved.mag.field_sieved.mag.sites.csv'))
     print("Done")
 
 
 def sieve(datalist, sieve_type, sieve_size):
     """Removes entries from datalist according to selected sieving criteria"""
 
-    print("Sieving by " + str(sieve_type) + " with cutoff set as " + str(sieve_size))
+    print("\nSieving by " + str(sieve_type) + " with cutoff set as " + str(sieve_size))
     df = pd.read_csv(datalist, index_col=0, sep=',')
     for item in df.index.tolist():
         if df.loc[item, sieve_type] <= sieve_size:
@@ -215,6 +215,8 @@ def screener_after(datalist):
 
 
 ###  WORKING AREA ###
-udatalist = '../Database/datalist_updated_sieved.mag.field.csv'
-sieve(udatalist, 'mag_sites', 1)
+# udatalist = '../Database/datalist_updated_sieved.mag.field.csv'
+# sieve(udatalist, 'mag_sites', 1)
 # duplicates(udatalist.replace('.csv', '_sieved.mag.sites'))
+datalist = wdatalist
+duplicates(datalist.replace('.csv', '_updated_sieved.mag.field_sieved.mag.sites.csv'))

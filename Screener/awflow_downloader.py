@@ -57,7 +57,7 @@ def downloader(counter=0, default_decounter=500):
     decounter - number of entries we download in a batch before waiting for some time in order not to overburden aflow with requests"""
 
     with open('./datalist_more_info_check.csv', 'a') as f:        # we create a csv file to write info into
-        f.write("ID,aflow_ID,compound,nergy_cell,energy_atom,lattice_system,'Bravais_lattice','original_Bravais_lattice',spacegroup,geometry,species,volume_cell,moment_cell,mag_field,mag_sites,comment1,comment2\n")
+        f.write("ID,aflow_ID,compound,energy_cell,energy_atom,lattice_system,Bravais_lattice,original_Bravais_lattice,spacegroup,geometry,species,volume_cell,moment_cell,mag_field,mag_sites,comment1,comment2\n")
     decounter = default_decounter
     while counter <= totalN:
         result[counter].files["edata.relax.out"]("./downloaded_data_structure_relaxed/"+str(counter))  # Structural informaion file after relaxation
