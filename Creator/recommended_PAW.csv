@@ -1,97 +1,97 @@
-element,ENCUT,mag_moment,POTCAR
-H,250,0,H
-He,479,0,He
-Li,499,0,Li_sv
-Be,248,0,Be
-B,319,0,B
-C,400,0,C
-N,400,0,N
-O,400,0,O
-F,400,0,F
-Ne,344,0,Ne
-Na,260,0,Na_pv
-Mg,200,0,Mg
-Al,240,,Al
-Si,245,0,Si
-P,255,0,P
-S,259,0,S
-Cl,262,0,Cl
-Ar,266,0,Ar
-K,259,0,K_sv
-Ca,267,0,Ca_sv
-Sc,223,0,Sc_sv
-Ti,275,0,Ti_sv
-V,264,0,V_sv
-Cr,266,0.5,Cr_pv
-Mn,270,2,Mn_pv
-Fe,268,2,Fe
-Co,268,1,Co
-Ni,270,0,Ni
-Cu,295,0,Cu
-Zn,277,0,Zn
-Ga,283,0,Ga_d
-Ge,310,0,Ge_d
-As,209,0,As
-Se,212,0,Se
-Br,216,0,Br
-Kr,185,0,Kr
-Rb,220,0,Rb_sv
-Sr,229,0,Sr_sv
-Y,203,0,Y_sv
-Zr,230,0,Zr_sv
-Nb,293,0,Nb_sv
-Mo,243,0,Mo_sv
-Tc,264,0,Tc_pv
-Ru,240,0,Ru_pv
-Rh,247,0,Rh_pv
-Pd,251,0,Pd
-Ag,250,0,Ag
-Cd,274,0,Cd
-In,239,0,In_d
-Sn,241,,Sn_d
-Sb,172,0,Sb
-Te,175,0,Te
-I,176,0,I
-Xe,153,0,Xe
-Cs,220,,Cs_sv
-Ba,187,,Ba_sv
-La,219,0,La
-Ce,273,2,Ce
-Pr,182,3,Pr_3
-Nd,183,3,Nd_3
-Pm,177,2,Pm_3
-Sm,177,1,Sm_3
-Eu,99,0,Eu_2
-Gd,154,7,Gd_3
-Tb,156,9,Tb_3
-Dy,156,10,Dy_3
-Ho,154,10,Ho_3
-Er,155,10,Er_3
-Tm,149,7,Tm_3
-Yb,113,4,Yb_2
-Lu,155,0,Lu_3
-Hf,220,,Hf_pv
-Ta,224,,Ta_pv
-W,223,,W_pv
-Re,226,,Re
-Os,228,,Os
-Ir,211,,Ir
-Pt,230,,Pt
-Au,230,0,Au
-Hg,233,0,Hg
-Tl,237,0,Tl
-Pb,238,0,Pb
-Bi,243,0,Bi
-Po,265,,Po
-At,266,,At
-Rn,152,,Rn
-Fr,215,,Fr
-Ra,237,,Ra
-Ac,172,,Ac
-Th,247,,Th
-Pa,252,,Pa
-U,253,,U
-Np,254,,Np
-Pu,254,,Pu
-Am,256,,Am
-Cm,258,,Cm
+﻿element,POTCAR,ENCUT,MOMENT
+Ac,Ac ,172,1.0
+Ag,Ag ,250,1.0
+Al,Al ,240,1.0
+Am,Am ,256,1.0
+Ar,Ar ,266,1.0
+As,As ,209,1.0
+At,At_d_GW,266,1.0
+Au,Au ,230,1.0
+B,B ,319,1.0
+Ba,Ba_sv ,187,1.0
+Be,Be ,248,1.0
+Bi,Bi_d ,243,1.0
+Br,Br ,216,1.0
+C,C ,400,1.0
+Ca,Ca_sv ,267,1.0
+Cd,Cd ,274,1.0
+Ce,Ce ,273,2.0
+Cl,Cl ,262,1.0
+Cm,Cm ,258,1.0
+Co,Co ,268,2.0
+Cr,Cr_pv ,266,1.0
+Cs,Cs_sv ,220,1.0
+Cu,Cu ,295,1.0
+Dy,Dy_3 ,156,10.0
+Er,Er_3,155,10.0
+Eu,Eu_2 ,99,1.0
+F,F ,400,1.0
+Fe,Fe ,268,2.0
+Fr,Fr_sv ,215,1.0
+Ga,Ga_d ,283,1.0
+Gd,Gd_3 ,154,7.0
+Ge,Ge_d ,310,1.0
+H,H ,250,1.0
+He,He ,479,1.0
+Hf,Hf_pv ,220,1.0
+Hg,Hg ,233,1.0
+Ho,Ho_3 ,154,10.0
+I,I ,176,1.0
+In,In_d ,239,1.0
+Ir,Ir ,211,1.0
+K,K_sv ,259,1.0
+Kr,Kr ,185,1.0
+La,La ,219,1.0
+Li,Li_sv ,499,1.0
+Lu,Lu_3 ,155,1.0
+Mg,Mg ,200,1.0
+Mn,Mn_pv ,270,2.0
+Mo,Mo_sv ,243,1.0
+N,N ,400,1.0
+Na,Na_pv ,260,1.0
+Nb,Nb_sv,293,1.0
+Nd,Nd_3,183,3.0
+Ne,Ne ,344,1.0
+Ni,Ni ,270,1.0
+Np,Np ,254,1.0
+O,O ,400,1.0
+Os,Os ,228,1.0
+P,P ,255,1.0
+Pa,Pa ,252,1.0
+Pb,Pb_d ,238,1.0
+Pd,Pd ,251,1.0
+Pm,Pm_3 ,177,2.0
+Po,Po_d ,265,1.0
+Pr,Pr_3 ,182,3.0
+Pt,Pt ,230,1.0
+Pu,Pu ,254,1.0
+Ra,Ra_sv ,237,1.0
+Rb,Rb_sv ,220,1.0
+Re,Re ,226,1.0
+Rh,Rh_pv ,247,1.0
+Rn,Rn ,152,1.0
+Ru,Ru_pv ,240,1.0
+S,S ,259,1.0
+Sb,Sb ,172,1.0
+Sc,Sc_sv ,223,1.0
+Se,Se ,212,1.0
+Si,Si ,245,1.0
+Sm,Sm_3 ,177,1.0
+Sn,Sn_d,241,1.0
+Sr,Sr_sv ,229,1.0
+Ta,Ta_pv,224,1.0
+Tb,Tb_3,156,9.0
+Tc,Tc_pv ,264,1.0
+Te,Te ,175,1.0
+Th,Th ,247,1.0
+Ti,Ti_sv ,275,1.0
+Tl,Tl_d ,237,1.0
+Tm,Tm_3,149,7.0
+U,U ,253,1.0
+V,V_sv ,264,1.0
+W,W_sv,223,1.0
+Xe,Xe ,153,1.0
+Y,Y_sv ,203,1.0
+Yb,Yb_2,113,4.0
+Zn,Zn ,277,1.0
+Zr,Zr_sv ,230,1.0

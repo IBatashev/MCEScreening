@@ -13,7 +13,7 @@ import INCAR_maker
 import POSCAR_maker
 import POSCAR_reader
 import POTCAR_maker
-from tools import POSCAR_reader
+# from tools import POSCAR_reader
 
 ### Setting which database we work with ###
 wdatadir_structure = '../Database/datadir_structure_relaxed/'
@@ -29,26 +29,25 @@ def single_run(def_type, deformation_list):
     path_to_calc = path + def_type + "/"
     os.mkdir(path_to_calc)
     POSCAR_maker.writer(path_to_calc, poscar_content, deformation_list)
-    # INCAR_maker.writer(path_to_calc, poscar_content)
-    # POTCAR_maker.writer(path_to_calc, poscar_content)
-    # job maker
+    INCAR_maker.writer(path_to_calc, poscar_content, elem_list)
+    POTCAR_maker.writer(path_to_calc, elem_list)
+
 
 def undeformed_lattice():
     """Creates all necessary files to run a VASP job for initial undeformed structure"""
 
     deformation_type = "undeformed"
-    deformation = [0,0,0]
+    deformation = [0, 0, 0]
     single_run(deformation_type, deformation)
 
-def deformed_lattice(lattice_type, n):
-    """Takes lattice type as argument and depending on symmetry creates all necessary files to run VASP jobs for all possible independent deformations.
 
-    For questions concerning this section one should consult bravais_lattice.pdf that contains info on lattice vectors
-    for primitive cells of all 14 types. The deformation matrix is determined in a way to certainly add deformation to
-    either 'a', 'b' or 'c' parameter and extra unneeded multipliers 'n' would be removed upon multiplication with actual
-    lattice matrix in POSCAR_maker.py. e.g.:
-     deformation matrix          primitive lattice matrix                                       deformed lattice matrix
-    [[n,n,n],[1,1,1],[1,1,1]] * [[3,0,3],[2,0,2],[0,0,1]] = [[3*n,0*n,3*n],[2,0,2],[0,0,1]] = [[3n,0,3n],[2,0,2],[0,0,1]]
+def deformed_lattice(lattice_type, n):
+    """Takes lattice type as argument and depending on symmetry creates all necessary files to run VASP jobs for all
+    possible independent deformations.
+
+    Depending on symmetry create deformation list [n, n, n ] which determines weather a, b, c are deformed. This list is
+    later passed to POSCAR_maker where pymatgen is used for adjusting the lattice matrix.
+    E.g. deformation [0.2, 0, 0] means that we have a parameter increased by 20% and no changes to b and c.
     """
 
     # "CUB"     1 Simple cubic                  OK
@@ -144,15 +143,14 @@ def deformed_lattice(lattice_type, n):
     #             deformation_matrix = np.array([[1,0,0],[1,1,0],[n,n,n]])
     #             single_run(deformation_type, deformation_matrix)
 
-
-    if lattice_type == "CUB" or lattice_type == "FCC" or lattice_type == "BCC":
+    if lattice_type == "cubic":
         deformation_types = 'a'
         for deformation_type in deformation_types:
             if deformation_type == "a":
                 deformation = [n, n, n]
                 single_run(deformation_type, deformation)
 
-    elif lattice_type == "HEX":
+    elif lattice_type == "hexagonal":
         deformation_types = 'ac'
         for deformation_type in deformation_types:
             if deformation_type == "a":
@@ -162,14 +160,14 @@ def deformed_lattice(lattice_type, n):
                 deformation = [0, 0, n]
                 single_run(deformation_type, deformation)
 
-    elif lattice_type == "RHL":
+    elif lattice_type == "rhombohedral":
         deformation_types = 'a'
         for deformation_type in deformation_types:
             if deformation_type == "a":
                 deformation = [n, n, n]
                 single_run(deformation_type, deformation)
 
-    elif lattice_type == "TET" or lattice_type == "BCT":
+    elif lattice_type == "tetragonal":
         deformation_types = 'ac'
         for deformation_type in deformation_types:
             if deformation_type == "a":
@@ -179,7 +177,7 @@ def deformed_lattice(lattice_type, n):
                 deformation = [0, 0, n]
                 single_run(deformation_type, deformation)
 
-    elif lattice_type == "ORC" or lattice_type == "ORCC" or lattice_type == "ORCI" or lattice_type == "ORCF":
+    elif lattice_type == "orthorhombic":
         deformation_types = 'abc'
         for deformation_type in deformation_types:
             if deformation_type == "a":
@@ -192,7 +190,7 @@ def deformed_lattice(lattice_type, n):
                 deformation = [0, 0, n]
                 single_run(deformation_type, deformation)
 
-    elif lattice_type == "MCL" or lattice_type == "MCLC":
+    elif lattice_type == "monoclinic":
         deformation_types = 'abc'
         for deformation_type in deformation_types:
             if deformation_type == "a":
@@ -205,7 +203,7 @@ def deformed_lattice(lattice_type, n):
                 deformation = [0, 0, n]
                 single_run(deformation_type, deformation)
 
-    elif lattice_type == "TRI":
+    elif lattice_type == "triclinic":
         deformation_types = 'abc'
         for deformation_type in deformation_types:
             if deformation_type == "a":
@@ -218,7 +216,9 @@ def deformed_lattice(lattice_type, n):
                 deformation = [0, 0, n]
                 single_run(deformation_type, deformation)
 
-    else: print("Error! Unknown Lattice type for " + str(ID))
+    else:
+        print("Error! Unknown Lattice type for " + str(ID))
+
 
 def parseArguments():
     """Function for parsing input argumens necessary for creator.py to work.
@@ -242,8 +242,8 @@ def parseArguments():
 # path = '../'+ID+'/'     # Prepare folder folder where all subfolders for a single ID
 # os.makedirs(path)       # will be created/executed/cleaned - working directory
 
-ID = 37                  #
-def_factor  = 0.2                     #
+ID = 130
+def_factor = 0.2
 path = '../Sample_checks/'+str(ID)+'/'     # Prepare folder folder where all subfolders for a single ID
 if os.path.exists(path):    # TEMP for local tests
     shutil.rmtree(path)     #
@@ -253,21 +253,14 @@ os.makedirs(path)           #
 structure_file = wdatadir_structure + str(ID)
 poscar_content = POSCAR_reader.read(structure_file)
 df = pd.read_csv(wdatalist_u, index_col=0, sep=',')
-latt_type = (df.loc[ID, 'lattice_system'])                     # not sure what is more reliable or even if there is any difference between bravais type or just name of system
-
-
-### Use ase to get Bravais lattice type from lattice given in POSCAR - ase seems to be a bit more adequate but thismatch is only 27 out of ~1200
-lattice_matrix = np.zeros([3, 3])
-for i in range(2, 5):
-    lattice_matrix[i - 2, :] = np.fromstring(poscar_content[i], dtype=np.float, sep=' ')
-read_lattice_matrix = geometry.Cell.new(lattice_matrix)
-lat_type = str(read_lattice_matrix.get_bravais_lattice()).split("(")[0]
+lat_type = (df.loc[ID, 'lattice_system'])
+elem_list = (df.loc[ID, 'species']).replace(';', ',').replace("'", "").strip('][').split(', ')
 
 if def_factor == 0:            # Check if we want deformation to happen
-    undeformed_lattice()       # Create a folder for a job without any deformation and run it
+    undeformed_lattice()       # Create a folder for a job without any deformation
 else:
     undeformed_lattice()
-    deformed_lattice(lat_type, def_factor, )  # Create the proper number of folders for all possible deformations according to Bravais lattice type and run them
+    deformed_lattice(lat_type, def_factor, )  # Create the proper number of folders for all possible deformations according to Bravais lattice type
 
 
 

@@ -12,7 +12,7 @@ wdatadir_structure = '../Database/datadir_structure_relaxed/'
 wdatadir_aflow = '../Database/datadir_aflow/'
 wdatadir_incars = '../Database/datadir_incars/'
 wdatalist = '../Database/datalist.csv'
-wdatalist_u = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
+# wdatalist = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
 
 
 def calculate_mag_field(moment, volume):
@@ -219,4 +219,35 @@ def screener_after(datalist):
 # sieve(udatalist, 'mag_sites', 1)
 # duplicates(udatalist.replace('.csv', '_sieved.mag.sites'))
 datalist = wdatalist
-duplicates(datalist.replace('.csv', '_updated_sieved.mag.field_sieved.mag.sites.csv'))
+# duplicates(datalist.replace('.csv', '_updated_sieved.mag.field_sieved.mag.sites.csv'))
+
+# cubic = ['FCC', 'BCC', 'CUB']
+# tetragonal = ['BCT', 'TET']
+# orthorhombic = ["ORC", "ORCC", "ORCI", "ORCF"]
+# monoclinic = ['MCL', 'MCLC']
+# df = pd.read_csv(datalist, index_col=0, sep=',')
+#
+# for item in df.index.tolist():
+#     if df.loc[item, 'lattice_system'] == 'cubic':
+#         if df.loc[item, 'Bravais_lattice'] in cubic:
+#             df = df.drop([item], axis=0)
+#     elif df.loc[item, 'lattice_system'] == 'hexagonal':
+#         if df.loc[item, 'Bravais_lattice'] == 'HEX':
+#             df = df.drop([item], axis=0)
+#     elif df.loc[item, 'lattice_system'] == 'rhombohedral':
+#         if df.loc[item, 'Bravais_lattice'] == 'RHL':
+#             df = df.drop([item], axis=0)
+#     elif df.loc[item, 'lattice_system'] == 'tetragonal':
+#         if df.loc[item, 'Bravais_lattice'] in tetragonal:
+#             df = df.drop([item], axis=0)
+#     elif df.loc[item, 'lattice_system'] == 'orthorhombic':
+#         if df.loc[item, 'Bravais_lattice'] in orthorhombic:
+#             df = df.drop([item], axis=0)
+#     elif df.loc[item, 'lattice_system'] == 'monoclinic':
+#         if df.loc[item, 'Bravais_lattice'] in monoclinic:
+#             df = df.drop([item], axis=0)
+#     elif df.loc[item, 'lattice_system'] == 'triclinic':
+#         if df.loc[item, 'Bravais_lattice'] == 'TRI':
+#             df = df.drop([item], axis=0)
+#
+# df.to_csv(datalist.replace(".csv", '_lattice.test.csv'))
