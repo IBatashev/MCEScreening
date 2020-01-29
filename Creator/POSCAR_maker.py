@@ -15,5 +15,5 @@ def writer(out_path, poscar_content, deformation):
     o.write('1.0')                                # Writing constant by which all lattice parameters are multiplied - hopefully pymatgen will always give lattice matrix without any scaling so we can just put 1.0 here
     o.write(str(structure.lattice) + '\n')        # writing lattice matrix from pymatgen
     o.write(poscar_content[5])                    # writing number of atoms - copied from original poscar
-    o.write('Direct')                             # writing type of coordinates, again we will always get direct coords from pymatgen, so we must have 'Direct' here
+    o.write('Direct' + '\n')                             # writing type of coordinates, again we will always get direct coords from pymatgen, so we must have 'Direct' here
     o.write(' ' + str(structure.frac_coords).replace('[', '').replace(']', ''))  # writing get direct coordinates from pymatgen

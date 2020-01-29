@@ -20,8 +20,9 @@ wdatadir_structure = '../Database/datadir_structure_relaxed/'
 wdatadir_aflow = '../Database/datadir_aflow/'
 wdatadir_incars = '../Database/datadir_incars/'
 wdatalist = '../Database/datalist.csv'
-wdatalist_u = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
 
+wdatalist_u = '../Database/TestDB/datalist_TestDB.csv'
+wdatadir_u = '../Database/TestDB/datadir_TestDB/'
 
 def single_run(def_type, deformation_list):
     """Creates files for a single VASP run"""
@@ -241,26 +242,28 @@ def parseArguments():
 # n = args.deformation    # deformation coefficient - an optional input argument
 # path = '../'+ID+'/'     # Prepare folder folder where all subfolders for a single ID
 # os.makedirs(path)       # will be created/executed/cleaned - working directory
-
-ID = 130
-def_factor = 0.2
-path = '../Sample_checks/'+str(ID)+'/'     # Prepare folder folder where all subfolders for a single ID
-if os.path.exists(path):    # TEMP for local tests
-    shutil.rmtree(path)     #
-os.makedirs(path)           #
-
-### Take all information from poscar as list of strings:
-structure_file = wdatadir_structure + str(ID)
-poscar_content = POSCAR_reader.read(structure_file)
 df = pd.read_csv(wdatalist_u, index_col=0, sep=',')
-lat_type = (df.loc[ID, 'lattice_system'])
-elem_list = (df.loc[ID, 'species']).replace(';', ',').replace("'", "").strip('][').split(', ')
+for item in df.index.tolist():
 
-if def_factor == 0:            # Check if we want deformation to happen
-    undeformed_lattice()       # Create a folder for a job without any deformation
-else:
-    undeformed_lattice()
-    deformed_lattice(lat_type, def_factor, )  # Create the proper number of folders for all possible deformations according to Bravais lattice type
+    ID = str(item)
+    def_factor = 0.2
+    path = wdatadir_u + 'inputdir/'+str(ID)+'/'     # Prepare folder folder where all subfolders for a single ID
+    if os.path.exists(path):    # TEMP for local tests
+        shutil.rmtree(path)     #
+    os.makedirs(path)           #
+
+    ### Take all information from poscar as list of strings:
+    structure_file = wdatadir_u + str(ID)
+    poscar_content = POSCAR_reader.read(structure_file)
+    # df = pd.read_csv(wdatalist_u, index_col=0, sep=',')
+    lat_type = (df.loc[item, 'lattice_system'])
+    elem_list = (df.loc[item, 'species']).replace(';', ',').replace("'", "").strip('][').split(', ')
+
+    if def_factor == 0:            # Check if we want deformation to happen
+        undeformed_lattice()       # Create a folder for a job without any deformation
+    else:
+        undeformed_lattice()
+        deformed_lattice(lat_type, def_factor, )  # Create the proper number of folders for all possible deformations according to Bravais lattice type
 
 
 
@@ -302,7 +305,7 @@ else:
 def deformed_tester(ID, n):
     df = pd.read_csv(wdatalist_u, index_col=0, sep=',')
     lattice_type = (df.loc[ID, 'lattice_system'])
-    poscar = POSCAR_reader.read(wdatadir_structure + str(ID))
+    poscar = POSCAR_reader.read(wdatadir_u + str(ID))
     poscar_string = ''.join(poscar)
     poscar = Poscar.from_string(poscar_string)
     structure = poscar.structure
