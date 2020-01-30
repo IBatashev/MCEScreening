@@ -1,0 +1,66 @@
+#! /bin/bash
+sleep $[ ( $RANDOM % 7 ) + 1 ]s
+workdir="./workdir"
+for entry in $(find ./inputdir -maxdepth 1 -mindepth 1 -type d) # will fail for filenames containing spaces and similar, but we should't have them anyway
+do
+  pathund="/undeformed"
+  undeformed=$entry$pathund
+  echo $entry
+  if  [ -z "$(ls -A $entry)" ]; then
+    # cleaning up after other script if we find empy directory we delete it and try another entry
+    echo "$entry removed"
+    rm -r $entry
+    break
+  elif [[ -d "$undeformed" ]]; then
+    # undeformed exists in entry => either 'in progress' or 'to run'
+    if [ -n "$(ls -A $undeformed)" ]; then
+      # not empty => 'to run'
+      # 1. move contents of the undeformed to workdir
+      find "$undeformed" -mindepth 1 -maxdepth 1 -exec mv --target-directory="$workdir" {} +
+      # 2. run vasp from workdir
+      echo "vasprun undeformed $entry"
+      # 3. grep on output to see the results
+#      if [[ $result = $fail ]]; then
+#        echo 'WIP'
+#       # put fail file in outdir and remove entry directory completly from workdir
+#      else
+#         echo 'WIP'
+#       # 4. put zipped outputs OR
+#       # 5. remove entry/undeformed from inputdir
+#       # 6. exit loop - script stops as we completed one calculation
+#      fi
+      break
+    else
+      # empty => this entry is in progress we will try next one
+      continue
+    fi
+  else
+    # undeformed is not in directory => looping through all deformation folders to find which one we can run
+    for deformation in $(find $entry -maxdepth 1 -mindepth 1 -type d)
+    do
+      if [ -n "$(ls -A $deformation)" ]; then
+        # deformation folder is not empty => 'to run'
+        # 1. move contents of the deformation folder to workdir
+        find "$deformation" -mindepth 1 -maxdepth 1 -exec mv --target-directory="$workdir" {} +
+        # 2. run vasp from workdir
+        echo "vasprun $deformation $entry"
+          # 3. grep on output to see the results
+#        if [[ $result = $fail ]]; then
+#          echo 'WIP'
+#          # put fail file in outdir
+#        else
+#          echo 'WIP'
+#          # 4. put zipped outputs OR
+#          # 5. remove entry/deformation from inputdir
+#          # 6. exit loop - script stops as we completed one calculation
+#        fi
+        break
+      else
+        # this deformation is in progress we will try next one
+        continue
+      fi
+      break
+    done
+  fi
+done
+
