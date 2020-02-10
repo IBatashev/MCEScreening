@@ -90,7 +90,7 @@ vasp_runner(){
   # function to call vasp executable
   cd /scratch/ibatashev/rundir.$SLURM_JOBID
   mpirun -x LD_LIBRARY_PATH=/vol/opt/intelcompilers/intel-2019/compilers_and_libraries_2019.1.144/linux/mkl/lib/intel64 $exe 1>stdout.out 2>/dev/null
-  echo "/home/ibatashev/MCES/SLURM/slurm-"$SLURM_JOBID".out" >> slurm_stder.$SLURM_JOBID
+  echo "/home/ibatashev/SLURM/slurm-"$SLURM_JOBID".out" >> slurm_stder.$SLURM_JOBID
   scp slurm_stder.$SLURM_JOBID $SLURM_SUBMIT_HOST:$SLURM_SUBMIT_DIR
 
   if [ -f "stdout" ]
@@ -110,9 +110,8 @@ zip_clean(){
   # Function to zip important VASP output files & delete everything else. Takes directory as argument
   for file in $(find $1 -maxdepth 1 -mindepth 1 -type f ! -name '.*' -printf '%f\n')
   do
-    if [ "$file" != "OUTCAR" ] || [ "$file" != "OSZICAR" ] || [ "$file" != "IBZKPT" ] || [ "$file" != "vasprun.xml" ] || [ "$file" != "DOSCAR" ] || [ "$file" != "*.out" ] || [ "$file" != "$jobID" ] || [ "$file" != "fail" ] || [ "$file" != "warning" ]
+    if [[ "$file" != "OUTCAR" && "$file" != "OSZICAR" && "$file" != "IBZKPT" && "$file" != "vasprun.xml" && "$file" != "DOSCAR" && "$file" != *.out && "$file" != "$jobID" && "$file" != "fail" && "$file" != "warning" ]]
     then
-      echo "$file"
       rm -f "$file"
     fi
   done

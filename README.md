@@ -38,12 +38,12 @@ TODO
 ---
 - one last check on deformations
 - (optional) Add scripts for auotomatic processing of the calculations - see 'custodian' package
+- clean all project files from test things, make them easier to use - less variables to change before runs
+- add instructions on how to use MCES 
 
 - clean scratch
 - simplify executor
-- don't put srderr output into $SUBMIT_DIR
-- zip_clean.sh doesn't clean for some reason?
-- git (gud)
+- put slurm output in /MCES/SLURM
 - symcheck is unfinished, is it even necessary?
 ---
     nn and nnn distance as creening parameter - check
