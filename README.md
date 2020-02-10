@@ -37,11 +37,15 @@ Notes
 TODO
 ---
 - one last check on deformations
-- write executor in python or shell
-- add error messages/exceptions everywhere so we can troubleshoot
 - (optional) Add scripts for auotomatic processing of the calculations - see 'custodian' package
 
-
+- clean scratch
+- simplify executor
+- don't put srderr output into $SUBMIT_DIR
+- zip_clean.sh doesn't clean for some reason?
+- git (gud)
+- symcheck is unfinished, is it even necessary?
 ---
     nn and nnn distance as creening parameter - check
+    free volume as screening parameter (compare total cell volume with volume occupied by atoms wigner sietz spheres?)
     shifting magnetic sublattices against each other?

@@ -1,3 +1,6 @@
+# https://rosenbrockc.github.io/aflow/control.html
+# https://rosenbrockc.github.io/aflow/entries.html
+# https://www.researchgate.net/publication/320179929_A_Practical_Python_API_for_Querying_AFLOWLIB
 from aflow import *
 import time
 

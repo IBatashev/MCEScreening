@@ -1,66 +1,330 @@
 #! /bin/bash
-sleep $[ ( $RANDOM % 7 ) + 1 ]s
-workdir="./workdir"
-for entry in $(find ./inputdir -maxdepth 1 -mindepth 1 -type d) # will fail for filenames containing spaces and similar, but we should't have them anyway
-do
-  pathund="/undeformed"
-  undeformed=$entry$pathund
-  echo $entry
-  if  [ -z "$(ls -A $entry)" ]; then
-    # cleaning up after other script if we find empy directory we delete it and try another entry
-    echo "$entry removed"
-    rm -r $entry
-    break
-  elif [[ -d "$undeformed" ]]; then
-    # undeformed exists in entry => either 'in progress' or 'to run'
-    if [ -n "$(ls -A $undeformed)" ]; then
-      # not empty => 'to run'
-      # 1. move contents of the undeformed to workdir
-      find "$undeformed" -mindepth 1 -maxdepth 1 -exec mv --target-directory="$workdir" {} +
-      # 2. run vasp from workdir
-      echo "vasprun undeformed $entry"
-      # 3. grep on output to see the results
-#      if [[ $result = $fail ]]; then
-#        echo 'WIP'
-#       # put fail file in outdir and remove entry directory completly from workdir
-#      else
-#         echo 'WIP'
-#       # 4. put zipped outputs OR
-#       # 5. remove entry/undeformed from inputdir
-#       # 6. exit loop - script stops as we completed one calculation
-#      fi
-      break
-    else
-      # empty => this entry is in progress we will try next one
-      continue
+
+#SBATCH --partition=thchem
+#SBATCH --time=00-01:00:00
+#SBATCH --mem=2000
+#SBATCH -N 1 -n 4
+#SBATCH --exclude=cn06,cn07,cn08,cn09,cn10,cn11,cn12,cn30,cn31,cn60,cn61,cn62,cn63,cn69,cn72,cn73,cn85,cn86,cn87,cn58,cn59
+#SBATCH --output=/home/ibatashev/SLURM/slurm-%A.out
+#SBATCH --chdir=/scratch/ibatashev
+
+#NOTE: change "LOGINNAME" into own login name throughout
+#NOTE: /scratch/LOGINNAME should be an existing directory on all possible clusternodes you select
+#NOTE: /home/LOGINNAME/SLURM should be an existing directory
+
+# use bash as shell
+# select partition: thchem, thchemhp, thchemdebug, or cncz
+# time: days, hours, minutes, second
+# memory in MB
+# -N nodes (always 1), -n cores
+# nodes in partition that are excluded,
+#   the thchem partition has: cn06,cn07,cn08,cn09,cn10,cn11,cn12,cn21,cn22,cn23,cn30,cn31,cn60,cn61,cn62,cn63,cn69,cn72,cn73,cn85,cn86,cn87,cn58,cn59
+#   history: cn06-cn09: the MTIN nodes
+#            cn21-cn23: the IPP nodes
+#   the cncz partition has: cn00,cn13,cn99
+# global location for stderr, can use /vol/temp alternatively
+# prevening an error message by starting in /scratch/LOGINNAME (should exist!) on run node
+
+# ----------------------------------------------------------------------------------------
+# BEWARE: this job is for using the default, i.e. open MPI, as installed on the cluster.
+# The path to the INTEL MPI should NOT be set. Do not source the INTEL paths.
+# The path needed for INTEL mkl, scaLAPACK and FFTW is set in mpirun.
+# ----------------------------------------------------------------------------------------
+
+# This selects the vasp executable
+# ubuntu16:
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_gam.5.4.4.ifort19.opmi
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_ncl.5.4.4.ifort19.opmi
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_std.5.4.4.ifort19.opmi
+# ubuntu18:
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_gam.5.4.4.ifort19.ubuntu18.ompi
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_ncl.5.4.4.ifort19.ubuntu18.ompi
+exe=/vol/thchem/dewijs/vasp/exe/vasp_std.5.4.4.ifort19.ubuntu18.ompi
+
+# needed
+ulimit -s unlimited
+ulimit -s
+
+# environment variables:
+#   $SLURM_JOBID    the number of the job
+#   $SLURM_SUBMIT_HOST  the node on which the job was submitted
+#   $SLURM_SUBMIT_DIR   the directory on this node from where the job was submitted
+echo ""
+echo "\$SLURM_JOBID       "$SLURM_JOBID
+echo "\$SLURM_SUBMIT_HOST "$SLURM_SUBMIT_HOST
+echo "\$SLURM_SUBMIT_DIR  "$SLURM_SUBMIT_DIR
+echo ""
+
+# Make unique directory on host that runs the program,
+# prevent "others" from reading, etc, and "group" from writing,
+# and copy (well... rsync) the inputfiles to this unique directory,
+# and go into this unique directory.
+# NOTE: /scratch/LOGINNAME should already be present!
+
+mkdir /scratch/ibatashev/rundir.$SLURM_JOBID
+chmod o-rwx /scratch/ibatashev/rundir.$SLURM_JOBID
+chmod g-w /scratch/ibatashev/rundir.$SLURM_JOBID
+
+
+# ----------------------------------------------------------------------------------------
+#  __  __    _____   ______    _____
+# |  \/  |  / ____| |  ____|  / ____|
+# | \  / | | |      | |__    | (___
+# | |\/| | | |      |  __|    \___ \
+# | |  | | | |____  | |____   ____) |
+# |_|  |_|  \_____| |______| |_____/
+# ----------------------------------------------------------------------------------------
+
+### setting variables ###
+
+jobID=$SLURM_JOBID
+workdir="/scratch/ibatashev/rundir.$SLURM_JOBID"
+inputdir="$SLURM_SUBMIT_DIR/inputdir"
+outdir="$SLURM_SUBMIT_DIR/outdir"
+badlist="$SLURM_SUBMIT_DIR/badlist"
+warnlist="$SLURM_SUBMIT_DIR/warnlist"
+
+### defining functions ###
+
+vasp_runner(){
+  # function to call vasp executable
+  cd /scratch/ibatashev/rundir.$SLURM_JOBID
+  mpirun -x LD_LIBRARY_PATH=/vol/opt/intelcompilers/intel-2019/compilers_and_libraries_2019.1.144/linux/mkl/lib/intel64 $exe 1>stdout.out 2>/dev/null
+  echo "/home/ibatashev/MCES/SLURM/slurm-"$SLURM_JOBID".out" >> slurm_stder.$SLURM_JOBID
+  scp slurm_stder.$SLURM_JOBID $SLURM_SUBMIT_HOST:$SLURM_SUBMIT_DIR
+
+  if [ -f "stdout" ]
+  then
+  rm stdout
+  fi
+  if [ -f "stderr" ]
+  then
+  rm stderr
+  fi
+
+  cd "$SLURM_SUBMIT_DIR"
+  }
+
+
+zip_clean(){
+  # Function to zip important VASP output files & delete everything else. Takes directory as argument
+  for file in $(find $1 -maxdepth 1 -mindepth 1 -type f ! -name '.*' -printf '%f\n')
+  do
+    if [ "$file" != "OUTCAR" ] || [ "$file" != "OSZICAR" ] || [ "$file" != "IBZKPT" ] || [ "$file" != "vasprun.xml" ] || [ "$file" != "DOSCAR" ] || [ "$file" != "*.out" ] || [ "$file" != "$jobID" ] || [ "$file" != "fail" ] || [ "$file" != "warning" ]
+    then
+      echo "$file"
+      rm -f "$file"
     fi
+  done
+#  cd "$1" && tar -zcf "../.$path_out/output.tar.gz" * && cd "../.."
+  cd "$1" && tar -zcf "../rundir.$SLURM_JOBID.tar.gz" * && cd $SLURM_SUBMIT_DIR
+  }
+
+
+k_sigma_test(){
+  # Function to test choice of kpoint and sigma values, takes path to calculation folder as argument
+  N_atoms=$(grep  -A 1 "Atomic configuration"  "$1/OUTCAR" | tail -1 | awk '{print$1}')
+  E_wo_entropy=$(grep -A 2  "free  energy   TOTEN" "$1/OUTCAR"  | tail -1 | awk '{print $4}')
+  F=$(grep "free  energy   TOTEN" "$1/OUTCAR"  | tail -1 | awk '{print $5}')
+  E0=$(grep -A 2  "free  energy   TOTEN" "$1/OUTCAR"  | tail -1 | awk '{print $7}')
+  EDIFF=$(grep "EDIFF" "$1/INCAR"  | tail -1 | awk '{print $3}')
+
+  E_diff1=$(awk "BEGIN { dif = (-( $F - ($E0))/$N_atoms); printf \"%.8f\", dif }") # the difference dE between F (free energy) and and E0 (sigma->0) is smaller than the accuracy from expected convergence
+  E_diff2=$(awk "BEGIN { dif = (-( $F - ($E_wo_entropy))/$N_atoms); printf \"%.8f\", dif }") # the difference dE between F (free energy) and energy without entropy is smaller than the accuracy
+
+  if (( $(echo "$E_diff1 <$EDIFF" |bc -l) )) || (( $(echo "$E_diff2 < $EDIFF" |bc -l) )) ; then # if either of above Energy differences is above 10meV (our EDIFF) than a warning is issued
+    kpoint_sigma=false
+  else
+    kpoint_sigma=true
+  fi
+  }
+
+
+convergence_test(){
+  # Function to test if chosen EDIFF has been reached, takes path to calculation folder as argument
+  dE=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $4}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
+  deps=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $5}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
+  EDIFF=$(grep "EDIFF" "$1/INCAR"  | tail -1 | awk '{print $3}')
+  if (( $(echo "$dE < $EDIFF" |bc -l) )) || (( $(echo "$deps < EDIFF" |bc -l) )) ; then
+    converged=true
+  else
+    converged=false
+  fi
+  }
+
+
+processing_results(){
+  # Function to analyse how successful was the calculation, takes outputdir/entry/subfolder as argument
+  k_sigma_test "$workdir"
+  convergence_test "$workdir"
+  symcheck=true
+
+  # Bad result 1: accuracy not reached
+  if [ "$converged" = false ] ; then
+    echo "run failed, set accuracy not reached"
+    echo "$entry $1 | set accuracy not reached" >> $badlist
+    echo "run failed, set accuracy not reached" > "$1/fail"
+    failure=true
+  # Bad result 2: symmetry was recognized differently by vasp
+  elif [ $symcheck = false ]; then # check if symmetry after run is what we expected
+    echo "symmetry mismatch"
+    echo "$entry $1 | symmetry mismatch" >> $badlist
+    echo "symmetry mismatch" > "$1/fail"
+    failure=true
+  # Bad result 3: Occupied highest bands
+  elif grep -Fxq "Your highest band is occupied" "$workdir/OUTCAR"; then
+    echo "Highest band occupied at some k-points"
+    echo "$entry $1 | Highest band occupied at some k-points" >> $badlist
+    echo "Highest band occupied at some k-points" > "$1/fail"
+    failure=true
+  # Warning 1: sigma and k-point are poorly chosen
+  elif [ "$kpoint_sigma" = true ] ; then
+    echo "sigma and k-point are poorly chosen"
+    echo "$entry $1 | sigma and k-point are poorly chosen" >> $warnlist
+    echo "sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " > "$1/warning"
+    failure=false
+  # Good result:
+  else
+    failure=false
+  fi
+  }
+
+
+### Main part ###
+echo "Starting..."
+# Main loop that walks through directory with our database and tries to find something to run
+for entry in $(find $inputdir -maxdepth 1 -mindepth 1 -type d ! -name '.*' -printf '%f\n') # NOTE: will fail for filenames containing spaces and similar, but we should't have them anyway
+do
+  # First we declare paths to work with for chosen entry
+  echo "Trying entry $entry"
+
+  # setting directory to work with for this entry
+  entry_path="$inputdir/${entry:?}" # extra caution on a slightly dangerous move: we don't want to delete "/" if both workdir and entry are NULL for some reason
+
+  # For each entry one of the following can happen:
+  ###   Case 1:  Cleanup of an empty folder      ###
+  if  [ -z "$(ls -A "$entry_path")" ]; then
+    # cleaning up after other scripts if we find empty directory we delete it and try another entry
+    echo "$entry folder is empty therefore being removed, will try another entry"
+    rm -r "$entry_path"
+    continue
+
+  ###   Case 2:   Undeformed structure calculation     ###
+  elif [[ -d "$entry_path/undeformed" ]]; then
+    # undeformed exists in entry folder => it is either in progress or not yet done
+    # setting up dirs to work with
+    undeformed_path="${inputdir:?}/${entry:?}/undeformed"
+    path_out="$outdir/$entry/undeformed"
+    # Check if other script is already working with it:
+    busy_flag="$undeformed_path/busy"
+    if [[ -e "$busy_flag" ]]; then
+      echo "$entry undeformed structure is being used by other executor (found a busy file), will try another entry"
+      continue
+    # If not we can start working with it
+    else
+    # 0 add stopfile to claim this job
+      true > "$busy_flag"
+
+    # 1. copy contents of the undeformed to workdir
+      rsync -av $SLURM_SUBMIT_HOST:$undeformed_path/* $workdir
+
+      #find "$undeformed_path" -mindepth 1 -maxdepth 1 -exec cp --target-directory="$workdir" {} +
+      true > "$workdir/$jobID" # a file to tell us ID of the job that performed this task
+      echo "$entry undeformed structure is good to go, files copied to workdir"
+
+    # 2. run vasp from workdir
+      echo "calling vasp to run $entry undeformed structure "
+      vasp_runner
+      echo "vasp finished"
+
+    # 3. check output to see the results and act accordingly:
+      mkdir "$outdir/$entry" # create folder for the entry in the outdir
+      mkdir "$path_out" # create undeformed subfolder in outdir/entry
+      processing_results "$path_out" # analyse results
+
+    # 4. Saving results
+      rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
+      rsync -av $workdir/$jobID $SLURM_SUBMIT_HOST:$path_out/$jobID
+      zip_clean "$workdir"
+      rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
+
+      if [ $failure = true ] ; then
+        echo "Failure, results placed in outdir, no need for deformations - removing $entry from workdir"
+        rm -r "$entry_path" # remove whole directory for this entry - no need for deformations if undeformed structure failed
+      else
+        echo "Success, results placed in outdir, undeformed folder removed"
+        rm -r "$undeformed_path" # remove entry/undeformed from inputdir
+      fi
+
+    # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
+      rm -r "$workdir"
+      echo "$entry undeformed structure calculated. Exiting."
+      break # A single job finished in some way - we break the main loop going through entries
+    fi
+
+  ###   Case 3: Deformed structure calculation   ###
   else
     # undeformed is not in directory => looping through all deformation folders to find which one we can run
-    for deformation in $(find $entry -maxdepth 1 -mindepth 1 -type d)
+    echo "$entry undeformed structure seems to be already completed, will try the deformations"
+    for deformation in $(find "$entry_path" -maxdepth 1 -mindepth 1 -type d ! -name '.*' -printf '%f\n')
     do
-      if [ -n "$(ls -A $deformation)" ]; then
-        # deformation folder is not empty => 'to run'
-        # 1. move contents of the deformation folder to workdir
-        find "$deformation" -mindepth 1 -maxdepth 1 -exec mv --target-directory="$workdir" {} +
-        # 2. run vasp from workdir
-        echo "vasprun $deformation $entry"
-          # 3. grep on output to see the results
-#        if [[ $result = $fail ]]; then
-#          echo 'WIP'
-#          # put fail file in outdir
-#        else
-#          echo 'WIP'
-#          # 4. put zipped outputs OR
-#          # 5. remove entry/deformation from inputdir
-#          # 6. exit loop - script stops as we completed one calculation
-#        fi
-        break
-      else
-        # this deformation is in progress we will try next one
+      # setting up dirs to work with
+      def_path="${inputdir:?}/${entry:?}/$deformation"
+      path_out="$outdir/$entry/$deformation"
+      # check if other script is already working with it:
+      busy_flag="$def_path/busy"
+      if [[ -e "$busy_flag" ]]; then
+        echo "Deformation $deformation is being used by other executor (found a busy file), will try another deformation"
+        jobdone=false # a flag that will tell us if any real work (vasp calculation) was done for this entry
         continue
+      # If not we can start working with it
+      else
+      # 0 add stopfile to claim this job
+        true > "$busy_flag"
+
+      # 1. copy contents of the deformation folder to workdir
+        rsync -av $SLURM_SUBMIT_HOST:$undeformed_path/* $workdir
+        true > "$workdir/$jobID" # a file to tell us ID of the job that performed this task
+        echo "$entry $deformation is good to go, files moved to workdir"
+
+      # 2. run vasp from workdir
+        echo "calling vasp to run $entry $deformation"
+        vasp_runner
+        echo "vasp finished"
+
+      # 3. grep on output to see the results and act accordingly
+        mkdir "$path_out" # prepare subfolder for deformation, we expect there is already outdir/entry/ which is created during undeformed calculation
+        processing_results "$path_out" # analyse results
+
+      # 4. Saving results:
+        rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
+        rsync -av $workdir/$jobID $SLURM_SUBMIT_HOST:$path_out/$jobID
+        zip_clean "$workdir"
+        rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
+
+        if [ $failure = true ] ; then
+          echo "Failure, results placed in outdir"
+        else
+          echo "Success, results placed in outdir"
+        fi
+        rm -r "$def_path" # deformation folder is removed from inputdir/entry
+
+      # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
+        rm -r "$workdir"
+        echo "$entry deformation $deformation calculated. Exiting."
+        jobdone=true # make a flag to break the main loop going trough all entries
+        break        # break loop going through deformations
       fi
-      break
     done
-  fi
-done
+    if [ $jobdone = true ] ; then  # a single deformation finished => we break the loop going through entries
+      break
+    elif [ $jobdone = false ] ; then # no deformation run can be executed for this entry => we try the next one
+      echo "Seems like there aren't any deformations left to do for $entry, will try another entry"
+      continue
+    fi
+  fi # all cases checked
+done # main loop closed
+
+echo "Bye"
+
 

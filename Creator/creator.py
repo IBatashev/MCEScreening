@@ -266,42 +266,6 @@ for item in df.index.tolist():
         deformed_lattice(lat_type, def_factor, )  # Create the proper number of folders for all possible deformations according to Bravais lattice type
 
 
-
-
-
-
-
-
-
- # kk = geometry.cell_to_cellpar(read_lattice_matrix)
-    # struct = geometry.cellpar_to_cell(kk)
-    # struct[0] = 1*struct[0]
-    # struct[1] = 1 * struct[1]
-    # struct[2] = 1 * struct[2]
-    #
-    # kkk = geometry.cell_to_cellpar(struct)
-    # return lattice_matrix, kk, struct, kkk
-
-# inp = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_tests.bravais.csv'
-# df = pd.read_csv(inp, index_col=0, sep=',')
-#
-# for item in df.index.tolist():
-#     # ID = item
-#     # df.loc[item, 'ase_bravais'] = creator(item, 1.0)
-#     # print(df.loc[item, 'ase_bravais'], df.loc[item, 'bravais_lattice'])
-#     if (df.loc[item, 'ase_bravais'] == df.loc[item, 'bravais_lattice']):
-#         df = df.drop([item])
-# df.to_csv(inp.replace(".csv", '_tests.bravais.dropped.' + '.csv'))
-
-# IDN = 1724
-#
-# print(creator(IDN)[0], '\n')
-# print(creator(IDN)[1], '\n')
-# print(creator(IDN)[2], '\n')
-# print(creator(IDN)[3])
-
-
-# poscar = Poscar.from_file("POSCAR")
 def deformed_tester(ID, n):
     df = pd.read_csv(wdatalist_u, index_col=0, sep=',')
     lattice_type = (df.loc[ID, 'lattice_system'])
@@ -313,7 +277,6 @@ def deformed_tester(ID, n):
     print(structure)
     #
     print('after')
-
 
     if lattice_type == 'cubic':
         deformation = [n, n, n]

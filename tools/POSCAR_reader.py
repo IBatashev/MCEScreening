@@ -11,3 +11,4 @@ def read(structure_file):
                     else:
                         poscar_content.append(line)
     return poscar_content
+

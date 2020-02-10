@@ -20,7 +20,7 @@ def writer(out_path, poscar_info, at_type_list):
     incar.write(
         "ALGO = Fast \n"
         "PREC = Accurate \n"
-        "ISIF = 1 \n"
+        "ISIF = 2 \n"
         "ISPIN = 2 \n"
         "ISMEAR = 2  \n"
         "NELM = 100 \n"
@@ -29,8 +29,11 @@ def writer(out_path, poscar_info, at_type_list):
         "LORBIT = 10 \n"
         "EDIFF = 0.00001 \n"
         "NCORE = 4 \n"
+        "LASPH = .TRUE.\n"
+        "GGA_COMPAT = .FALSE.\n"
         "LCHARG = .FALSE. \n"
         "LWAVE = .FALSE. \n"
+        "LREAL = A\n"
     )
     incar.write(
         "ENCUT = " + str(encut) + "\n"
