@@ -32,20 +32,30 @@ Notes
 ---
 - Moments for MAGMOM are now chosen from Slater curves for magnetic elements (3d and 4d) all other elements set to 1.0 (maybe change to 0.5 - need to check after test runs)
 - Potentials from PBE .54 (according to recommendations from vaspwiki, except for Mg, W_pv and At_d which have more recent updates). ENCUT set as ENMAX*1.3
-- Magnetic field is calculated for PRIMITIVE lattice not the conventional one used in calculations, still the result should hold
 
 TODO
 ---
 - one last check on deformations
-- (optional) Add scripts for auotomatic processing of the calculations - see 'custodian' package
+- (optional) Add scripts for automatic processing of the calculations - see 'custodian' package
 - clean all project files from test things, make them easier to use - less variables to change before runs
-- add instructions on how to use MCES 
+- add instructions on how to use MCES
 
-- clean scratch
 - simplify executor
-- put slurm output in /MCES/SLURM
+- hide output messages (make rsync silent at least and maybe ame everything mere readable, also think of how to populate warnings, and jobfiles are perhaps unnecessary)
 - symcheck is unfinished, is it even necessary?
+
+- Test results:
+    - symmetries (bravais + group number)
+    - moments (total)
+    - moments by elements
+    - geometry (volume + a,b,c) 
+    - if the deformations are done the way we expected
+    - time to complete total
+    - time to complete average
+    - average memory use
+    - number of warnings
+    - number of repeated calcculations
 ---
-    nn and nnn distance as creening parameter - check
+    nn and nnn distance as screening parameter - check
     free volume as screening parameter (compare total cell volume with volume occupied by atoms wigner sietz spheres?)
     shifting magnetic sublattices against each other?

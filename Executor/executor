@@ -5,7 +5,7 @@
 #SBATCH --mem=2000
 #SBATCH -N 1 -n 4
 #SBATCH --exclude=cn06,cn07,cn08,cn09,cn10,cn11,cn12,cn30,cn31,cn60,cn61,cn62,cn63,cn69,cn72,cn73,cn85,cn86,cn87,cn58,cn59
-#SBATCH --output=/home/ibatashev/SLURM/slurm-%A.out
+#SBATCH --output=/home/ibatashev/MCES/SLURM/slurm-%A.out
 #SBATCH --chdir=/scratch/ibatashev
 
 #NOTE: change "LOGINNAME" into own login name throughout
@@ -90,8 +90,8 @@ vasp_runner(){
   # function to call vasp executable
   cd /scratch/ibatashev/rundir.$SLURM_JOBID
   mpirun -x LD_LIBRARY_PATH=/vol/opt/intelcompilers/intel-2019/compilers_and_libraries_2019.1.144/linux/mkl/lib/intel64 $exe 1>stdout.out 2>/dev/null
-  echo "/home/ibatashev/SLURM/slurm-"$SLURM_JOBID".out" >> slurm_stder.$SLURM_JOBID
-  scp slurm_stder.$SLURM_JOBID $SLURM_SUBMIT_HOST:$SLURM_SUBMIT_DIR
+  #echo "/home/ibatashev/SLURM/slurm-"$SLURM_JOBID".out" >> slurm_stder.$SLURM_JOBID
+  #scp slurm_stder.$SLURM_JOBID $SLURM_SUBMIT_HOST:$SLURM_SUBMIT_DIR
 
   if [ -f "stdout" ]
   then
@@ -112,7 +112,7 @@ zip_clean(){
   do
     if [[ "$file" != "OUTCAR" && "$file" != "OSZICAR" && "$file" != "IBZKPT" && "$file" != "vasprun.xml" && "$file" != "DOSCAR" && "$file" != *.out && "$file" != "$jobID" && "$file" != "fail" && "$file" != "warning" ]]
     then
-      rm -f "$file"
+      rm -f "$1/$file"
     fi
   done
 #  cd "$1" && tar -zcf "../.$path_out/output.tar.gz" * && cd "../.."
@@ -126,12 +126,11 @@ k_sigma_test(){
   E_wo_entropy=$(grep -A 2  "free  energy   TOTEN" "$1/OUTCAR"  | tail -1 | awk '{print $4}')
   F=$(grep "free  energy   TOTEN" "$1/OUTCAR"  | tail -1 | awk '{print $5}')
   E0=$(grep -A 2  "free  energy   TOTEN" "$1/OUTCAR"  | tail -1 | awk '{print $7}')
-  EDIFF=$(grep "EDIFF" "$1/INCAR"  | tail -1 | awk '{print $3}')
 
   E_diff1=$(awk "BEGIN { dif = (-( $F - ($E0))/$N_atoms); printf \"%.8f\", dif }") # the difference dE between F (free energy) and and E0 (sigma->0) is smaller than the accuracy from expected convergence
   E_diff2=$(awk "BEGIN { dif = (-( $F - ($E_wo_entropy))/$N_atoms); printf \"%.8f\", dif }") # the difference dE between F (free energy) and energy without entropy is smaller than the accuracy
 
-  if (( $(echo "$E_diff1 <$EDIFF" |bc -l) )) || (( $(echo "$E_diff2 < $EDIFF" |bc -l) )) ; then # if either of above Energy differences is above 10meV (our EDIFF) than a warning is issued
+  if (( $(echo "$E_diff1 < 0.001" |bc -l) )) || (( $(echo "$E_diff2 < 0.001" |bc -l) )) ; then # if either of above Energy differences is above 1meV than a warning is issued
     kpoint_sigma=false
   else
     kpoint_sigma=true
@@ -190,7 +189,9 @@ processing_results(){
 
 
 ### Main part ###
+sleep $((RANDOM % 60))
 echo "Starting..."
+
 # Main loop that walks through directory with our database and tries to find something to run
 for entry in $(find $inputdir -maxdepth 1 -mindepth 1 -type d ! -name '.*' -printf '%f\n') # NOTE: will fail for filenames containing spaces and similar, but we should't have them anyway
 do
@@ -216,6 +217,7 @@ do
     path_out="$outdir/$entry/undeformed"
     # Check if other script is already working with it:
     busy_flag="$undeformed_path/busy"
+
     if [[ -e "$busy_flag" ]]; then
       echo "$entry undeformed structure is being used by other executor (found a busy file), will try another entry"
       continue
@@ -225,7 +227,7 @@ do
       true > "$busy_flag"
 
     # 1. copy contents of the undeformed to workdir
-      rsync -av $SLURM_SUBMIT_HOST:$undeformed_path/* $workdir
+      rsync -av $SLURM_SUBMIT_HOST:${undeformed_path:?}/* $workdir
 
       #find "$undeformed_path" -mindepth 1 -maxdepth 1 -exec cp --target-directory="$workdir" {} +
       true > "$workdir/$jobID" # a file to tell us ID of the job that performed this task
@@ -282,7 +284,7 @@ do
         true > "$busy_flag"
 
       # 1. copy contents of the deformation folder to workdir
-        rsync -av $SLURM_SUBMIT_HOST:$undeformed_path/* $workdir
+        rsync -av $SLURM_SUBMIT_HOST:${def_path:?}/* $workdir
         true > "$workdir/$jobID" # a file to tell us ID of the job that performed this task
         echo "$entry $deformation is good to go, files moved to workdir"
 
