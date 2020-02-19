@@ -11,8 +11,10 @@ import POSCAR_reader
 wdatadir_structure = '../Database/datadir_structure_relaxed/'
 wdatadir_aflow = '../Database/datadir_aflow/'
 wdatadir_incars = '../Database/datadir_incars/'
-wdatalist = '../Database/datalist.csv'
+# wdatalist = '../Database/datalist.csv'
 # wdatalist = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
+vasp_results_dir = '../Database/TestDB/output'
+wdatalist = '../Database/TestDB/datalist_TestDB.csv'
 
 
 def calculate_mag_field(moment, volume):
@@ -43,12 +45,6 @@ def mag_sites_calculator(ID):
     Takes ID as input, looks up structure file in the datadir and returns number of unique sites as integer"""
 
     ### List of Magnetic Atoms
-    # magnetic = ['Cu','Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Gd']
-
-    # magnetic = [ 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', # Sc, Y, and everythong else is considered not magnetic
-    #              'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', # we sieve out Cd at earliear step, so I could have ommitted it from this list but this approach is more "universal"
-    #              'La', 'Ce', 'Pr', 'Nd', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb', 'Lu']
-
     magnetic = [ 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu',  # Sc, Y, and everythong else is considered not magnetic
                  'Nb', 'Mo', 'Ru', 'Rh', 'Pd', # we sieve out Cd at earliear step, so I could have ommitted it from this list but this approach is more "universal"
                  'Ce', 'Pr', 'Nd', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb']
@@ -130,12 +126,6 @@ def mag_sites_calculator(ID):
     #########################################
 
 
-def mag_sites_difference(ID):
-    # Works after calculation, reads OUTCAR and checks values of moments for different magnetic sites and returns biggest
-    # difference between moments of sublattices or just all significantly different moments...
-    return
-
-
 def duplicates(datalist):
     """Remove duplicates from datalist. Entries are considered duplicates if they have the same composition AND same
      spacegroup. Duplicates with different spacegroups are kept - a new field is added to datalist counting how many
@@ -155,6 +145,77 @@ def duplicates(datalist):
     df.to_csv(datalist.replace('.csv', '_no.duplicates.csv'))
 
 
+def timing(ID):
+    """Reads OUTCARs and returns time taken to calculate entry (total: undeformed + all deformations)"""
+
+    time = 0
+    deformations = os.listdir(vasp_results_dir + '/' + str(ID))
+    for deformation in deformations:
+        with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
+            for line in search:
+                if 'User time' in line:
+                    time = time + (float(line.split()[-1]))
+    return time
+
+def memmory_used(ID):
+    """Reads OUTCARs and returns memmory used to calculate entry (total: undeformed + all deformations)"""
+
+    memmory = 0
+    deformations = os.listdir(vasp_results_dir + '/' + str(ID))
+    for deformation in deformations:
+        with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
+            for line in search:
+                if 'Maximum memory used' in line:
+                    memmory = memmory + (float(line.split()[-1]))
+    memmory = memmory * 9.5367432e-7 # converting kb to Gb
+    return memmory
+
+
+def mag_field_after(ID, deformation):
+    """Read OUTCAR file for chosen deformation type and return value of magnetic field based on moment and volume.
+    If chosen deformation is n/a for this ID a '-' string will be returned"""
+
+    if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
+        with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
+            moment_lines = []
+            for line in search:
+                    if 'volume of cell' in line:
+                        volume = (float(line.split()[-1]))
+                    if 'tot' in line:
+                        moment_lines.append(line)
+        moment = float(moment_lines[-2].split()[-1])
+        field_after = calculate_mag_field(moment, volume)
+        # return field_after
+        return moment
+    else:
+        return '-'
+
+def moment_volume_after(ID, deformation):
+    """Read OUTCAR file for chosen deformation type and return value of magnetic field based on moment and volume.
+    If chosen deformation is n/a for this ID a '-' string will be returned"""
+
+    if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
+        with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
+            moment_lines = []
+            for line in search:
+                    if 'volume of cell' in line:
+                        volume = (float(line.split()[-1]))
+                    if 'tot' in line:
+                        moment_lines.append(line)
+        moment = float(moment_lines[-2].split()[-1])
+        field_after = calculate_mag_field(moment, volume)
+        return moment, volume
+    else:
+        return 0, 0
+
+
+
+def mag_sites_difference(ID):
+    # Works after calculation, reads OUTCAR and checks values of moments for different magnetic sites and returns biggest
+    # difference between moments of sublattices or just all significantly different moments...
+    return
+
+
 def screener_before(datalist):
     # I feel that performance may not be optimal - making two loops does not seem reasonable
     # but I have to test if working with two df simultaneously is faster...
@@ -171,7 +232,7 @@ def screener_before(datalist):
         pbar.set_description("Processing datalist")
         for item in df.index.tolist():
             pbar.update(1)                              # Updating progress bar at each step
-            ### Write number of sites into datalist:
+        ### Write number of sites into datalist:
             df.loc[item, 'mag_sites'] = mag_sites_calculator(item)
         ### Write internal magnetic field into datalist:
             df.loc[item, 'mag_field'] = calculate_mag_field(df.loc[item, 'moment_cell'], df.loc[item, 'volume_cell'])
@@ -179,7 +240,7 @@ def screener_before(datalist):
             is_scalled, scaling_factor = check_universal_scaling_factor(item)
             if is_scalled == True:
                 df.loc[item, 'comment1'] = 'scaling factor = ' + str(scaling_factor)
-         ### Wrire an updated datalist back to file
+        ### Wrire an updated datalist back to file
         df.to_csv(datalist.replace('.csv', '_updated.csv'))
 
         # ### Write the shorter sieved database to a separate file and copy relevant POSCAR to new datadir
@@ -207,47 +268,38 @@ def sieve(datalist, sieve_type, sieve_size):
 
 
 def screener_after(datalist):
-    # Second main function used for applying criteria obtained after calculations and performing corresponding checks
+    """Second main function used for applying criteria obtained after calculations and performing corresponding checks"""
+
     df = pd.read_csv(datalist, index_col=0, sep=',')
-    for item in df.index.tolist():
-        mag_sites_difference(item)
-        #...mag field again - to correct for erroneously scalled compounds
+    with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
+        pbar.set_description("Processing datalist")
+        for item in df.index.tolist():
+            pbar.update(1)                              # Updating progress bar at each step
+
+        ### Writes memmory used for calculation
+            df.loc[item, 'memmory_used'] = memmory_used(item)
+        ### Writes time used for calculation
+            df.loc[item, 'time_to_calculate'] = timing(item)
+        ### Writes magnetic fields for undeformed and deformed structures from calculation results
+            df.loc[item, 'mag_field_after'] = mag_field_after(item, 'undeformed')
+            df.loc[item, 'magF_a'] = mag_field_after(item, 'a')
+            df.loc[item, 'magF_b'] = mag_field_after(item, 'b')
+            df.loc[item, 'magF_c'] = mag_field_after(item, 'c')
+        ### placeholder for futureimplementation of site difference check
+            mag_sites_difference(item)
+
+    df.to_csv(datalist.replace(".csv", '_out' + '.csv'))
 
 
 ###  WORKING AREA ###
-# udatalist = '../Database/datalist_updated_sieved.mag.field.csv'
-# sieve(udatalist, 'mag_sites', 1)
-# duplicates(udatalist.replace('.csv', '_sieved.mag.sites'))
-datalist = wdatalist
-# duplicates(datalist.replace('.csv', '_updated_sieved.mag.field_sieved.mag.sites.csv'))
 
-# cubic = ['FCC', 'BCC', 'CUB']
-# tetragonal = ['BCT', 'TET']
-# orthorhombic = ["ORC", "ORCC", "ORCI", "ORCF"]
-# monoclinic = ['MCL', 'MCLC']
-# df = pd.read_csv(datalist, index_col=0, sep=',')
-#
-# for item in df.index.tolist():
-#     if df.loc[item, 'lattice_system'] == 'cubic':
-#         if df.loc[item, 'Bravais_lattice'] in cubic:
-#             df = df.drop([item], axis=0)
-#     elif df.loc[item, 'lattice_system'] == 'hexagonal':
-#         if df.loc[item, 'Bravais_lattice'] == 'HEX':
-#             df = df.drop([item], axis=0)
-#     elif df.loc[item, 'lattice_system'] == 'rhombohedral':
-#         if df.loc[item, 'Bravais_lattice'] == 'RHL':
-#             df = df.drop([item], axis=0)
-#     elif df.loc[item, 'lattice_system'] == 'tetragonal':
-#         if df.loc[item, 'Bravais_lattice'] in tetragonal:
-#             df = df.drop([item], axis=0)
-#     elif df.loc[item, 'lattice_system'] == 'orthorhombic':
-#         if df.loc[item, 'Bravais_lattice'] in orthorhombic:
-#             df = df.drop([item], axis=0)
-#     elif df.loc[item, 'lattice_system'] == 'monoclinic':
-#         if df.loc[item, 'Bravais_lattice'] in monoclinic:
-#             df = df.drop([item], axis=0)
-#     elif df.loc[item, 'lattice_system'] == 'triclinic':
-#         if df.loc[item, 'Bravais_lattice'] == 'TRI':
-#             df = df.drop([item], axis=0)
-#
-# df.to_csv(datalist.replace(".csv", '_lattice.test.csv'))
+datalist = wdatalist
+
+# print(mag_field_after(5314, 'undeformed'), 'da=', mag_field_after(5314, 'a'), 'db=', mag_field_after(5314, 'b'), 'dc=',  mag_field_after(5314, 'c') )
+# print(mag_field_after(6295, 'undeformed'), 'da=', mag_field_after(6295, 'a'), 'db=', mag_field_after(6295, 'b'), 'dc=',  mag_field_after(6295, 'c') )
+
+
+# screener_after(datalist)
+# print(memmory_used(6295))
+
+print(calculate_mag_field(moment_volume_after(5565, 'a')[0] - moment_volume_after(5565, 'undeformed')[0], moment_volume_after(5565, 'a')[1] - moment_volume_after(5565, 'undeformed')[1] ))

@@ -27,6 +27,13 @@ Database ChangeLog
 |3|11.12.19| 28 |Small test subset made from 2 with python script included in archive. Random seed  = 1|
 |4|22.12.19|8970|More files now – separate folders including aflow files (which contain all possible non-file tags). Instead of CONTCARs we now have aflow_structure files for both before and after relaxation containg a LOT of structural info. Contains python script used for downloading. Includes python script used for downloading. Aflow files were downloaded a week |
 |5|07.01.19|8603|Updated version of 4, radioactive things now removed. Includes script that was used to remove entries containing  U, Po, Th|
+|6|09.02.20| 31 |Small test subset made from 5 using make_test_db.py with random seed = 1. After random generation manually added Fe2P(ID=6295), FeRh(ID=6373) and LaFeSi(ID=5565)|  
+
+Run Results
+---
+| # | Date Performed | Comment | Result Comment
+|---|---|---|---|
+|1|11.02.20|TestDB (database 6) with deformation constant of 1.2 (20% increasae)| Speed ok; no errors; some entries lost moments - need to check; need to do different deformation constant (0.8) maybe several steps
 
 Notes
 ---
@@ -39,22 +46,31 @@ TODO
 - (optional) Add scripts for automatic processing of the calculations - see 'custodian' package
 - clean all project files from test things, make them easier to use - less variables to change before runs
 - add instructions on how to use MCES
+- new flowchart for executor
+- fix polymorphs
+- Gd5Ge2Si2 MCL referense
+- Add whole volume change to the calculation
+- try deformatons in step of 5%(4%) and in both directions
+- Make plots of Mag Field vs Magneto-elasticity 
+- add rounding to numbers before they go into .csv
 
 - simplify executor
 - hide output messages (make rsync silent at least and maybe ame everything mere readable, also think of how to populate warnings, and jobfiles are perhaps unnecessary)
 - symcheck is unfinished, is it even necessary?
+- add a warning for big change in mag field after calculation
 
 - Test results:
     - symmetries (bravais + group number)
     - moments (total)
     - moments by elements
     - geometry (volume + a,b,c) 
+    - number of atoms in structure
     - if the deformations are done the way we expected
-    - time to complete total
-    - time to complete average
     - average memory use
-    - number of warnings
-    - number of repeated calcculations
+    - total number of warnings
+    - total number of repeated calculations
+    - try different ways to estimate magneto elastic
+    
 ---
     nn and nnn distance as screening parameter - check
     free volume as screening parameter (compare total cell volume with volume occupied by atoms wigner sietz spheres?)

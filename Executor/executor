@@ -138,6 +138,19 @@ k_sigma_test(){
   }
 
 
+mag_field_test(){
+  tot_moment=$(grep "tot"  "$1/OUTCAR" | tail -2 | head -1 | awk '{print$NF}')
+  volume=$(grep "volume of cell" "$1/OUTCAR" | tail -1 | awk '{print$NF}')
+  pi=3.141592653
+  mag_field=$(awk "BEGIN { field = ( (4*$pi*0.1*$tot_moment*9.2741)/$volume ); printf \"%.8f\", field }")
+  if (( $(echo "$mag_field > 0.45" |bc -l) )) ; then # if field is below our limit after calculation a warning is issued
+    small_mag_field=false
+  else
+    small_mag_field=true
+  fi
+  }
+
+
 convergence_test(){
   # Function to test if chosen EDIFF has been reached, takes path to calculation folder as argument
   dE=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $4}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
@@ -155,6 +168,7 @@ processing_results(){
   # Function to analyse how successful was the calculation, takes outputdir/entry/subfolder as argument
   k_sigma_test "$workdir"
   convergence_test "$workdir"
+  mag_field_test "$workdir"
   symcheck=true
 
   # Bad result 1: accuracy not reached
@@ -178,8 +192,14 @@ processing_results(){
   # Warning 1: sigma and k-point are poorly chosen
   elif [ "$kpoint_sigma" = true ] ; then
     echo "sigma and k-point are poorly chosen"
-    echo "$entry $1 | sigma and k-point are poorly chosen" >> $warnlist
+    echo "$entry $1 | sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " >> $warnlist
     echo "sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " > "$1/warning"
+    failure=false
+  # Warning 2: magnetic field after calculation is smaller than expeced
+  elif ["$small_mag_field" = true ] ; then
+    echo "magnetic field is below expected threshold"
+    echo "$entry $1 | magnetic field is below expected threshold: M = $mag_field" >> $warnlist
+    echo "magnetic field is below expected threshold: M = $mag_field" > "$1/warning"
     failure=false
   # Good result:
   else
@@ -228,9 +248,6 @@ do
 
     # 1. copy contents of the undeformed to workdir
       rsync -av $SLURM_SUBMIT_HOST:${undeformed_path:?}/* $workdir
-
-      #find "$undeformed_path" -mindepth 1 -maxdepth 1 -exec cp --target-directory="$workdir" {} +
-      true > "$workdir/$jobID" # a file to tell us ID of the job that performed this task
       echo "$entry undeformed structure is good to go, files copied to workdir"
 
     # 2. run vasp from workdir
@@ -245,7 +262,6 @@ do
 
     # 4. Saving results
       rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
-      rsync -av $workdir/$jobID $SLURM_SUBMIT_HOST:$path_out/$jobID
       zip_clean "$workdir"
       rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
 
@@ -259,6 +275,7 @@ do
 
     # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
       rm -r "$workdir"
+      rm "$workdir.tar.gz"
       echo "$entry undeformed structure calculated. Exiting."
       break # A single job finished in some way - we break the main loop going through entries
     fi
@@ -285,7 +302,6 @@ do
 
       # 1. copy contents of the deformation folder to workdir
         rsync -av $SLURM_SUBMIT_HOST:${def_path:?}/* $workdir
-        true > "$workdir/$jobID" # a file to tell us ID of the job that performed this task
         echo "$entry $deformation is good to go, files moved to workdir"
 
       # 2. run vasp from workdir
@@ -299,7 +315,6 @@ do
 
       # 4. Saving results:
         rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
-        rsync -av $workdir/$jobID $SLURM_SUBMIT_HOST:$path_out/$jobID
         zip_clean "$workdir"
         rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
 
@@ -312,6 +327,7 @@ do
 
       # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
         rm -r "$workdir"
+        rm "$workdir.tar.gz"
         echo "$entry deformation $deformation calculated. Exiting."
         jobdone=true # make a flag to break the main loop going trough all entries
         break        # break loop going through deformations
