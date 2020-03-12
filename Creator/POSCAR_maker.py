@@ -1,4 +1,5 @@
 from pymatgen.io.vasp import Poscar
+import numpy as np
 
 
 def writer(out_path, poscar_content, deformation):
@@ -7,7 +8,11 @@ def writer(out_path, poscar_content, deformation):
     poscar_string = ''.join(poscar_content)       # merging poscar content in a single string so pymatgen can read it
     poscar = Poscar.from_string(poscar_string)    # using pymatgen to acquire our structure from poscar content
     structure = poscar.structure
-    structure.apply_strain(deformation)           # adding deformation to the lattice with pymatgen
+
+    lattice_string = str(structure.lattice).replace('\n', ' ')          # convert pymatgen lattice to string
+    lattice = np.fromstring(lattice_string, sep=' ').reshape(3,3)       # convert resulting string to numpy array
+    lattice_deformed = np.multiply(lattice, deformation)                # apply deformation
+    structure.lattice.__init__(lattice_deformed)                        # update pymatgen structure with new lattice
 
     filename = 'POSCAR'
     o = open(out_path+filename, "w+")
@@ -17,3 +22,5 @@ def writer(out_path, poscar_content, deformation):
     o.write(poscar_content[5])                    # writing number of atoms - copied from original poscar
     o.write('Direct' + '\n')                             # writing type of coordinates, again we will always get direct coords from pymatgen, so we must have 'Direct' here
     o.write(' ' + str(structure.frac_coords).replace('[', '').replace(']', ''))  # writing get direct coordinates from pymatgen
+
+

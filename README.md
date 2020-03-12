@@ -42,25 +42,23 @@ Notes
 
 TODO
 ---
-- one last check on deformations
 - (optional) Add scripts for automatic processing of the calculations - see 'custodian' package
 - clean all project files from test things, make them easier to use - less variables to change before runs
 - add instructions on how to use MCES
 - new flowchart for executor
 - fix polymorphs
 - Gd5Ge2Si2 MCL referense
-- Add whole volume change to the calculation
 - try deformatons in step of 5%(4%) and in both directions
 - Make plots of Mag Field vs Magneto-elasticity 
 - add rounding to numbers before they go into .csv
 
 - simplify executor
-- hide output messages (make rsync silent at least and maybe ame everything mere readable, also think of how to populate warnings, and jobfiles are perhaps unnecessary)
-- symcheck is unfinished, is it even necessary?
-- add a warning for big change in mag field after calculation
+- hide output messages (make rsync silent at least and maybe ame everything more readable, also think of how to populate warnings, and jobfiles are perhaps unnecessary)
+- symcheck is unfinished, maybe ALAT? need to test
+- add a warning for big change in mag field after calculation?
 
 - Test results:
-    - symmetries (bravais + group number)
+    - symmetries (bravais + group number) + lattice parameters from OUTCAR - ALAT and C/A, B/A
     - moments (total)
     - moments by elements
     - geometry (volume + a,b,c) 
@@ -73,5 +71,6 @@ TODO
     
 ---
     nn and nnn distance as screening parameter - check
-    free volume as screening parameter (compare total cell volume with volume occupied by atoms wigner sietz spheres?)
+    how number (distances) of nn changes in FM and AFM state - not nece, requires relaxatino   
+    free volume as screening parameter (compare total cell volume with volume occupied by atoms (covalent radius))?)
     shifting magnetic sublattices against each other?

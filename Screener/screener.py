@@ -209,6 +209,18 @@ def moment_volume_after(ID, deformation):
         return 0, 0
 
 
+def sym_after(ID, deformation):
+
+    if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
+        with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
+            for line in search:
+                    if 'Routine SETGRP: Setting up the symmetry group for a' in line:
+                        symmetry = (next(search)).strip("\n")
+        return symmetry
+    else:
+        return 0
+
+
 
 def mag_sites_difference(ID):
     # Works after calculation, reads OUTCAR and checks values of moments for different magnetic sites and returns biggest
@@ -285,9 +297,13 @@ def screener_after(datalist):
             df.loc[item, 'magF_a'] = mag_field_after(item, 'a')
             df.loc[item, 'magF_b'] = mag_field_after(item, 'b')
             df.loc[item, 'magF_c'] = mag_field_after(item, 'c')
+            df.loc[item, 'magF_diff_a'] = (calculate_mag_field(moment_volume_after(item, 'a')[0] - moment_volume_after(item, 'undeformed')[0], moment_volume_after(item, 'a')[1] - moment_volume_after(item, 'undeformed')[1] ))
         ### placeholder for futureimplementation of site difference check
             mag_sites_difference(item)
-
+            df.loc[item, 'sym_after'] = sym_after(item, 'undeformed')
+            df.loc[item, 'sym_a'] = sym_after(item, 'a')
+            df.loc[item, 'sym_b'] = sym_after(item, 'b')
+            df.loc[item, 'sym_c'] = sym_after(item, 'c')
     df.to_csv(datalist.replace(".csv", '_out' + '.csv'))
 
 
@@ -299,7 +315,7 @@ datalist = wdatalist
 # print(mag_field_after(6295, 'undeformed'), 'da=', mag_field_after(6295, 'a'), 'db=', mag_field_after(6295, 'b'), 'dc=',  mag_field_after(6295, 'c') )
 
 
-# screener_after(datalist)
+screener_after(datalist)
 # print(memmory_used(6295))
 
-print(calculate_mag_field(moment_volume_after(5565, 'a')[0] - moment_volume_after(5565, 'undeformed')[0], moment_volume_after(5565, 'a')[1] - moment_volume_after(5565, 'undeformed')[1] ))
+# print(sym_after(3876,'a'))
