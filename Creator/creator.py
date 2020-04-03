@@ -22,8 +22,8 @@ wdatadir_aflow = '../Database/datadir_aflow/'
 wdatadir_incars = '../Database/datadir_incars/'
 wdatalist = '../Database/datalist.csv'
 
-wdatalist_u = '../Database/TestDB/datalist_TestDB.csv'
-wdatadir_u = '../Database/TestDB/datadir_TestDB/'
+wdatalist = '../Database/TestDB/datalist_TestDB.csv'
+wdatadir_structure = '../Database/TestDB/datadir_TestDB/'
 
 def single_run(def_type, deformation_list):
     """Creates files for a single VASP run"""
@@ -39,7 +39,7 @@ def undeformed_lattice():
     """Creates all necessary files to run a VASP job for initial undeformed structure"""
 
     deformation_type = "undeformed"
-    deformation = [[0,0,0],[0,0,0],[0,0,0]]
+    deformation = [[1,1,1],[1,1,1],[1,1,1]]
     single_run(deformation_type, deformation)
 
 
@@ -272,9 +272,9 @@ with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice prog
     for item in df.index.tolist():
         pbar.update(1)
         ID = str(item)
-        def_factor = 0.8
+        def_factor = 1.0
         path = wdatadir_structure + 'inputdir/'+str(ID)+'/'     # Prepare folder folder where all subfolders for a single ID
-        if os.path.exists(path):    # TEMP for local tests
+        if os.path.exists(path):    # !WARNING! Overwrites existing path!
             shutil.rmtree(path)     #
         os.makedirs(path)           #
 
@@ -285,39 +285,8 @@ with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice prog
         lat_type = (df.loc[item, 'Bravais_lattice'])
         elem_list = (df.loc[item, 'species']).replace(';', ',').replace("'", "").strip('][').split(', ')
 
-        if def_factor == 0:            # Check if we want deformation to happen
+        if def_factor == 1:            # Check if we want deformation to happen
             undeformed_lattice()       # Create a folder for a job without any deformation
         else:
             undeformed_lattice()
             deformed_lattice(lat_type, def_factor)  # Create the proper number of folders for all possible deformations according to Bravais lattice type
-
-
-def deformed_tester(ID, n):
-    df = pd.read_csv(wdatalist, index_col=0, sep=',')
-    lattice_type = (df.loc[ID, 'Bravais_lattice'])
-    poscar = POSCAR_reader.read(wdatadir_structure + str(ID))
-    poscar_string = ''.join(poscar)
-    poscar = Poscar.from_string(poscar_string)
-    structure = poscar.structure
-
-    poscar2 = Poscar.from_file('POSCAR')
-
-    print(structure.lattice)
-    print(structure.get_space_group_info())
-    # print(structure)
-
-    print('\nafter\n')
-
-    deformation = [[1, 0, 0], [1, 1, 0], [n, n, n]]
-
-    lat_matr = str(structure.lattice).replace('\n', ' ')
-    nump = np.fromstring(lat_matr, sep=' ').reshape(3,3)
-    nump2 = np.multiply(nump, deformation)
-    structure.lattice.__init__(nump2)
-
-    print(structure.lattice)
-    print(structure.get_space_group_info())
-    # print(structure)
-
-
-# deformed_tester(2100, 10)

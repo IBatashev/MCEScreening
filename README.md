@@ -28,6 +28,7 @@ Database ChangeLog
 |4|22.12.19|8970|More files now – separate folders including aflow files (which contain all possible non-file tags). Instead of CONTCARs we now have aflow_structure files for both before and after relaxation containg a LOT of structural info. Contains python script used for downloading. Includes python script used for downloading. Aflow files were downloaded a week |
 |5|07.01.19|8603|Updated version of 4, radioactive things now removed. Includes script that was used to remove entries containing  U, Po, Th|
 |6|09.02.20| 31 |Small test subset made from 5 using make_test_db.py with random seed = 1. After random generation manually added Fe2P(ID=6295), FeRh(ID=6373) and LaFeSi(ID=5565)|  
+|7|31.03.20| 20 |Small test subset made from 5 using make_test_db.py with random seed = 1. All compounds are hexagonal (Fe2P(ID=6295) was already in from random|
 
 Run Results
 ---
@@ -48,9 +49,8 @@ TODO
 - new flowchart for executor
 - fix polymorphs
 - Gd5Ge2Si2 MCL referense
-- try deformatons in step of 5%(4%) and in both directions
-- Make plots of Mag Field vs Magneto-elasticity 
 - add rounding to numbers before they go into .csv
+- wtf is wrong with entries 2870 and 7513 why are the structures not recognized by pymatgen?
 
 - simplify executor
 - hide output messages (make rsync silent at least and maybe ame everything more readable, also think of how to populate warnings, and jobfiles are perhaps unnecessary)

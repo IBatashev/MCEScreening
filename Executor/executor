@@ -39,7 +39,11 @@
 # ubuntu18:
 # exe=/vol/thchem/dewijs/vasp/exe/vasp_gam.5.4.4.ifort19.ubuntu18.ompi
 # exe=/vol/thchem/dewijs/vasp/exe/vasp_ncl.5.4.4.ifort19.ubuntu18.ompi
-exe=/vol/thchem/dewijs/vasp/exe/vasp_std.5.4.4.ifort19.ubuntu18.ompi
+
+# VASP 5
+#exe=/vol/thchem/dewijs/vasp/exe/vasp_std.5.4.4.ifort19.ubuntu18.ompi
+# VASP 6  to use BEXT
+exe=/vol/thchem/dewijs/vasp/exe/vasp_std.Ivan.ifort19.ubuntu18.ompi
 
 # needed
 ulimit -s unlimited
@@ -135,6 +139,7 @@ k_sigma_test(){
   else
     kpoint_sigma=true
   fi
+  echo "sigma and k-points checked"
   }
 
 
@@ -148,6 +153,7 @@ mag_field_test(){
   else
     small_mag_field=true
   fi
+  echo "magnetic field checked"
   }
 
 
@@ -156,15 +162,18 @@ convergence_test(){
   dE=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $4}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
   deps=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $5}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
   EDIFF=$(grep "EDIFF" "$1/INCAR"  | tail -1 | awk '{print $3}')
-  if (( $(echo "$dE < $EDIFF" |bc -l) )) || (( $(echo "$deps < EDIFF" |bc -l) )) ; then
+  RMM_step=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $2}')
+  if (( $(echo "$dE < $EDIFF" |bc -l) )) && (( $(echo "$deps < EDIFF" |bc -l) )) && (( $(echo "$RMM_step < 50" |bc -l) )) ; then # if all three checks are passed then calculation is converged
     converged=true
   else
     converged=false
   fi
+  echo "convergence checked"
   }
 
 
 processing_results(){
+  echo "processing started"
   # Function to analyse how successful was the calculation, takes outputdir/entry/subfolder as argument
   k_sigma_test "$workdir"
   convergence_test "$workdir"
@@ -174,7 +183,7 @@ processing_results(){
   # Bad result 1: accuracy not reached
   if [ "$converged" = false ] ; then
     echo "run failed, set accuracy not reached"
-    echo "$entry $1 | set accuracy not reached" >> $badlist
+    echo "$entry $1 | set accuracy not reached, RMM step is $RMM_step" >> $badlist
     echo "run failed, set accuracy not reached" > "$1/fail"
     failure=true
   # Bad result 2: symmetry was recognized differently by vasp
@@ -196,7 +205,7 @@ processing_results(){
     echo "sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " > "$1/warning"
     failure=false
   # Warning 2: magnetic field after calculation is smaller than expeced
-  elif ["$small_mag_field" = true ] ; then
+  elif [ "$small_mag_field" = true ] && [ "$undeformed" = true ] ; then
     echo "magnetic field is below expected threshold"
     echo "$entry $1 | magnetic field is below expected threshold: M = $mag_field" >> $warnlist
     echo "magnetic field is below expected threshold: M = $mag_field" > "$1/warning"
@@ -231,6 +240,7 @@ do
 
   ###   Case 2:   Undeformed structure calculation     ###
   elif [[ -d "$entry_path/undeformed" ]]; then
+    undeformed_run=true # flag to tell other functions that this is an undeformed run
     # undeformed exists in entry folder => it is either in progress or not yet done
     # setting up dirs to work with
     undeformed_path="${inputdir:?}/${entry:?}/undeformed"
@@ -259,6 +269,7 @@ do
       mkdir "$outdir/$entry" # create folder for the entry in the outdir
       mkdir "$path_out" # create undeformed subfolder in outdir/entry
       processing_results "$path_out" # analyse results
+	  echo "results processed"
 
     # 4. Saving results
       rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
@@ -282,6 +293,7 @@ do
 
   ###   Case 3: Deformed structure calculation   ###
   else
+    undeformed_run=false # flag to tell other functions that this is a deformation run
     # undeformed is not in directory => looping through all deformation folders to find which one we can run
     echo "$entry undeformed structure seems to be already completed, will try the deformations"
     for deformation in $(find "$entry_path" -maxdepth 1 -mindepth 1 -type d ! -name '.*' -printf '%f\n')
@@ -312,6 +324,7 @@ do
       # 3. grep on output to see the results and act accordingly
         mkdir "$path_out" # prepare subfolder for deformation, we expect there is already outdir/entry/ which is created during undeformed calculation
         processing_results "$path_out" # analyse results
+		echo "results processed"
 
       # 4. Saving results:
         rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
@@ -343,5 +356,3 @@ do
 done # main loop closed
 
 echo "Bye"
-
-

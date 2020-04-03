@@ -34,6 +34,7 @@ def writer(out_path, poscar_info, at_type_list):
         "LCHARG = .FALSE. \n"
         "LWAVE = .FALSE. \n"
         "LREAL = A\n"
+        "BEXT = 0.001\n"             #uncomment for applied filed
     )
     incar.write(
         "ENCUT = " + str(encut) + "\n"
