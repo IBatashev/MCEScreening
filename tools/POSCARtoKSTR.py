@@ -58,7 +58,7 @@ def KSTR_maker(ID):
 
     # WRITING KSTR file
     output_path = "./"+ID+".kstr"
-    KSTR = open(output_path,'w')
+    KSTR = open(output_path, 'w')
 
     KSTR.write(
         "KSTR HP......=N             09 Mar 99\n"

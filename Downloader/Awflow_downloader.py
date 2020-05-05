@@ -64,7 +64,7 @@ def downloader(counter=0, default_decounter=500):
     decounter = default_decounter
     while counter <= totalN:
         result[counter].files["edata.relax.out"]("./downloaded_data_structure_relaxed/"+str(counter))  # Structural informaion file after relaxation
-        result[counter].files["edata.orig.out"]("./downloaded_data_structure/"+str(counter))           # Structural information file before relaxation (very optional one only need a single structure file)
+        # result[counter].files["edata.orig.out"]("./downloaded_data_structure/"+str(counter))           # Structural information file before relaxation (very optional we only need a single structure file)
         # result[counter].files["INCAR.bands"]("./downloaded_data_incars/" + str(counter))             # INCAR file not necessary for screening, optional download to gather more info on calculations done by aflolib
         result[counter].files["aflowlib.out"]("./downloaded_data_aflow/" + str(counter))               # File containing ALL information on entry, same (but less tags) info goes into datalist so optional, but useful download
         newrow = str(counter)+','+str(result[counter].auid)+','+ str(result[counter].compound)+','+ str(result[counter].energy_atom)+','+ str(result[counter].energy_cell)+','+str(result[counter].lattice_system_relax.strip('\n'))+','+str(result[counter].Bravais_lattice_relax.strip('\n'))+','+str(result[counter].Bravais_lattice_orig.strip('\n'))+','+ str(result[counter].spacegroup_relax)+','+ str(result[counter].geometry).replace(',', ';')+','+str(result[counter].species).replace(',', ';')+','+str(result[counter].volume_cell)+','+ str(result[counter].spin_cell)+','+'0'+','+'0'+','+''+','+'\n'

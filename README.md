@@ -45,19 +45,22 @@ TODO
 ---
 - (optional) Add scripts for automatic processing of the calculations - see 'custodian' package
 - clean all project files from test things, make them easier to use - less variables to change before runs
-- add instructions on how to use MCES
+- add instructions on how to use MCES add list of steps and in what order to do them and also write which files are created at each step
+
 - new flowchart for executor
-- fix polymorphs
-- Gd5Ge2Si2 MCL referense
+- Gd5Ge2Si2 MCL reference
 - add rounding to numbers before they go into .csv
 - wtf is wrong with entries 2870 and 7513 why are the structures not recognized by pymatgen?
-
+- Add function to screener_after to parse messages from warnlist and badlist and add them to datalist somehow - just write number of warnings? and failures?
+- add check to screener_after to  warn about big change in mag field after calculation compared to before
+- make a script for screen after that gathers result from the run - failures and reasons etc to make a csv file with successfully completed compounds that we can further analyse
+- update readme
+- make option for creator to include bext
+- write folder joiner tool
+- rewrite function description to display parameter tips
 - simplify executor
-- hide output messages (make rsync silent at least and maybe ame everything more readable, also think of how to populate warnings, and jobfiles are perhaps unnecessary)
-- symcheck is unfinished, maybe ALAT? need to test
-- add a warning for big change in mag field after calculation?
 
-- Test results:
+- Collector for results:
     - symmetries (bravais + group number) + lattice parameters from OUTCAR - ALAT and C/A, B/A
     - moments (total)
     - moments by elements
@@ -66,11 +69,21 @@ TODO
     - if the deformations are done the way we expected
     - average memory use
     - total number of warnings
-    - total number of repeated calculations
-    - try different ways to estimate magneto elastic
+
     
 ---
     nn and nnn distance as screening parameter - check
     how number (distances) of nn changes in FM and AFM state - not nece, requires relaxatino   
     free volume as screening parameter (compare total cell volume with volume occupied by atoms (covalent radius))?)
     shifting magnetic sublattices against each other?
+
+---
+
+1st make new inputdir with creator
+2nd create a .csv from this inputdir to know which deformation we are going to performance
+3rd run VASP calculations
+4th check which runs failed and create a new .csv that only contains failures
+5th run creator to make new inputdir from failures.csv
+6th run VASP calculations now we want to actually retry failed runs with adjusted incars
+
+7th join run results in outdir, replacing failed subfolders and adding subfolders that were not previously there

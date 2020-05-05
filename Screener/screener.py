@@ -6,16 +6,7 @@ import tqdm
 import tarfile
 ### LOCAL IMPORTS ###
 import POSCAR_reader
-
-
-### Setting which database we work with ###
-wdatadir_structure = '../Database/datadir_structure_relaxed/'
-wdatadir_aflow = '../Database/datadir_aflow/'
-wdatadir_incars = '../Database/datadir_incars/'
-# wdatalist = '../Database/datalist.csv'
-# wdatalist = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
-vasp_results_dir = '../Database/TestDB/second_run/1.2/outdir'
-wdatalist = '../Database/TestDB/datalist_TestDB.csv'
+import matplotlib.pyplot as plt
 
 
 def calculate_mag_field(moment, volume):
@@ -57,7 +48,7 @@ def mag_sites_calculator(ID):
     df = pd.read_csv(wdatalist, index_col=0, sep=',')
 
     structure_file = wdatadir_structure + str(ID)         # still need to decide weather I should
-                                                          # use relaxed or non-relaxed structure for this - non relaxed may give overestimaded positions, if symmetry was lowered hz
+
     with open(structure_file, 'r') as f:    # need to get all atoms from Wyckoff subsection of structure file
         for line in f:
             if 'Representative' in line:    # subsection we are interested in goes after line with word "Representative"
@@ -76,7 +67,7 @@ def mag_sites_calculator(ID):
                             species_list = np.asarray(temp_line2.split('; '))
                             elem = species_list[n]
                         eltable = np.append(eltable, [[elem, wyckoff]], axis=0)
-    # This section with masks probably could be done better and shorter but with such smal arrays it shouldn't matter much
+    # This section with masks probably could be done better and shorter but with such small arrays it shouldn't matter much
     mask = np.in1d(eltable[:, 0], magnetic)  # Check what entries in Wyckoff list are in list of magnetic atoms
     eltable2 = eltable[mask]                 # new array of only magnetic ones using previous mask
     unique_keys, mask2 = np.unique(eltable2[:, 1], return_index=True)  # check what entries of the new array have unique wyckoff sites - creates a list of indicies corresponding to said entries
@@ -99,12 +90,12 @@ def duplicates(datalist):
 
     df = pd.read_csv(datalist, index_col=0, sep=',')
     df = df.drop_duplicates(subset=['compound', 'spacegroup'])  # remove all entries with exact same spacegroup and composition - their difference is most likely a sligh change of lattice parameters
-    df['polymorphs'] = (df.groupby('compound').compound.transform(lambda x: x.duplicated(keep=False).sum()))  # check how many entries still have the same composition - are polymorphs with diffeent structures - and count them
+    df['polymorphs'] = 1 + (df.groupby('compound').compound.transform(lambda x: x.duplicated(keep=False).sum()))  # check how many entries still have the same composition - are polymorphs with diffeent structures - and count them
     df.to_csv(datalist.replace('.csv', '_no.duplicates.csv'))
 
 
 def timing(ID):
-    """Reads OUTCARs and returns time taken to calculate entry (total: undeformed + all deformations)"""
+    """Reads OUTCARs and returns time taken to calculate entry in minutes (total: undeformed + all deformations)"""
 
     time = 0
     deformations = os.listdir(vasp_results_dir + '/' + str(ID))
@@ -113,24 +104,29 @@ def timing(ID):
             for line in search:
                 if 'User time' in line:
                     time = time + (float(line.split()[-1]))
-    return round(time)
+    return round(time/60)
 
-def memmory_used(ID):
+
+def memory_used(ID):
     """Reads OUTCARs and returns memmory used to calculate entry (total: undeformed + all deformations)"""
 
-    memmory = 0
+    memory = 0
     deformations = os.listdir(vasp_results_dir + '/' + str(ID))
     for deformation in deformations:
         with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
             for line in search:
                 if 'Maximum memory used' in line:
-                    memmory = memmory + (float(line.split()[-1]))
-    memmory = memmory * 9.5367432e-7  # converting kb to Gb
-    return round(memmory, 2)
+                    memory = memory + (float(line.split()[-1]))
+    memory = memory * 9.5367432e-7  # converting kb to Gb
+    return round(memory, 2)
 
 
 def geometry_after(ID, deformation):
-    """Reads OUTCARs and returns lattice parameters """
+    """Reads OUTCARs and returns lattice parameters as detrmined by vasp.
+    If chosen deformation is n/a for this ID an empty string will be returned.
+    WARNING! The parameters returned are for whaterver supercell vasp was working with.
+    They may not be the actual lattice parameters for the compound but instead multiples of said parameters.
+    Use with caution."""
 
     if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
         with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
@@ -146,29 +142,31 @@ def geometry_after(ID, deformation):
                     b = round((float(line.split()[-1]))*a, 2)
         return a, b, c
     else:
-        return 0, 0, 0
+        return '', '', ''
 
 
 def moment_volume_after(ID, deformation):
-    """Read OUTCAR file for chosen deformation type and return value of magnetic field based on moment and volume.
-    If chosen deformation is n/a for this ID a '-' string will be returned"""
+    """Read OUTCAR file for chosen deformation type and return moment, volume and
+    value of magnetic field based on moment and volume.
+    If chosen deformation is n/a for this ID an empty string will be returned"""
 
     if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
         with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
             moment_lines = []
             for line in search:
                 if 'volume of cell' in line:
-                    volume = round((float(line.split()[-1])), 2)
+                    volume = (float(line.split()[-1]))
                 if 'tot' in line:
                     moment_lines.append(line)
-        moment = round(float(moment_lines[-2].split()[-1]), 2)
+        moment = float(moment_lines[-2].split()[-1])
         field_after = calculate_mag_field(moment, volume)
         return moment, volume, field_after
     else:
-        return 0, 0, 0
+        return '', '', ''
 
 
 def sym_after(ID, deformation):
+    """ Gives symmetry group determined by VASP for chosen deformation. If Deformation is n/a returns an empty string"""
     if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
         with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
             for line in search:
@@ -176,10 +174,14 @@ def sym_after(ID, deformation):
                     symmetry = (next(search)).strip("\n")
         return symmetry
     else:
-        return 0
+        return ''
 
 
 def archive_reader(ID, deformation):
+    """Function to work with archived files created from rundir
+    At the moment reads number of RMM steps from OSZICAR.
+    To be repuporsed later for other queries"""
+
     if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
         archive_path = vasp_results_dir + '/' + str(ID) + '/' + deformation + '/'
         for item in os.listdir(archive_path):
@@ -194,10 +196,11 @@ def archive_reader(ID, deformation):
                     algorithm_step = content[-3].split()
         return algorithm_step[0] + algorithm_step[1]
     else:
-        return 0
+        return ''
 
 
 def energy(ID, deformation):
+    """ Gives total energy calculated by VASP for chosen deformation. If Deformation is n/a returns an empty string"""
     if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
         with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
             energy_lines = []
@@ -207,13 +210,34 @@ def energy(ID, deformation):
         tot_energy = round(float(energy_lines[-1].split()[-2]), 4)
         return tot_energy
     else:
-        return 0
+        return ''
 
 
 def mag_sites_difference(ID):
     # Works after calculation, reads OUTCAR and checks values of moments for different magnetic sites and returns biggest
     # difference between moments of sublattices or just all significantly different moments...
     return
+
+
+def magnetoelastic(ID, deformation, plot=False):
+    """"""
+
+    if deformation + '_inc' in os.listdir(vasp_results_dir + '/' + str(ID)):
+        moment_inc, volume_inc, field_inc = moment_volume_after(ID, deformation+'_inc')
+        moment_dec, volume_dec, field_dec = moment_volume_after(ID, deformation + '_dec')
+        moment, volume, field = moment_volume_after(ID, 'undeformed')
+        y = [field_dec, field, field_inc]
+        x = [0.95, 1, 1.05]
+        coeff = np.polyfit(x, y, 1)
+        if plot == True:
+            print('Plotting...')
+            poly1d_fn = np.poly1d(coeff)
+            plt.plot(x, y, 'yo', x, poly1d_fn(x), '--k')
+            plt.xlim(0.9, 1.1)
+            plt.show()
+        return coeff[0], field_dec, field_inc
+    else:
+        return '', '', ''
 
 
 def screener_before(datalist):
@@ -237,9 +261,10 @@ def screener_before(datalist):
         ### Write internal magnetic field into datalist:
             df.loc[item, 'mag_field'] = calculate_mag_field(df.loc[item, 'moment_cell'], df.loc[item, 'volume_cell'])
         ### Check if universal scaling factor is 1.0, othervise results for magnetic field calculaded using aflow data are unreliable
-            is_scalled, scaling_factor = check_universal_scaling_factor(item)
-            if is_scalled == True:
-                df.loc[item, 'comment1'] = 'scaling factor = ' + str(scaling_factor)
+        # does not seem to mater in the end, pymatgen interpretation of the structure file contains correct numbers
+            # is_scalled, scaling_factor = check_universal_scaling_factor(item)
+            # if is_scalled == True:
+            #     df.loc[item, 'comment1'] = 'scaling factor = ' + str(scaling_factor)
         ### Wrire an updated datalist back to file
         df.to_csv(datalist.replace('.csv', '_updated.csv'))
 
@@ -251,7 +276,7 @@ def screener_before(datalist):
         ### drops everything that does not fit the criteria, creating new datalist file at each sieve
     sieve(datalist.replace('.csv', '_updated.csv'), 'mag_field', min_mag_field)
     sieve(datalist.replace('.csv', '_updated_sieved.mag.field.csv'), 'mag_sites', min_site_number)
-        ### drops duplicates, creates new datalist file __ PERHAPS THIS SHOULD BE FIRST STET TO LOWER FURTHER WORKLOAD
+        ### drops duplicates, creates new datalist file __ PERHAPS THIS SHOULD BE FIRST STEP TO LOWER FURTHER WORKLOAD
     duplicates(datalist.replace('.csv', '_updated_sieved.mag.field_sieved.mag.sites.csv'))
     print("Done")
 
@@ -270,61 +295,99 @@ def sieve(datalist, sieve_type, sieve_size):
 def screener_after(datalist):
     """Second main function used for applying criteria obtained after calculations and performing corresponding checks"""
 
+    min_mag_field = 0.45
+
     df = pd.read_csv(datalist, index_col=0, sep=',')
     with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
         pbar.set_description("Processing datalist")
         for item in df.index.tolist():
             pbar.update(1)                              # Updating progress bar at each step
 
-        ### Writes memmory used for calculation
-            df.loc[item, 'memmory_used'] = memmory_used(item)
-        ### Writes time used for calculation
-            df.loc[item, 'time_to_calculate'] = timing(item)
-        ### Writes magnetic fields for undeformed and deformed structures from calculation results
-            #df.loc[item, 'magF_diff_a'] = (calculate_mag_field(moment_volume_after(item, 'a')[0] - moment_volume_after(item, 'undeformed')[0], moment_volume_after(item, 'a')[1] - moment_volume_after(item, 'undeformed')[1]))
-            df.loc[item, 'moment_u'] = moment_volume_after(item, 'undeformed')[0]
-            df.loc[item, 'moment_a'] = moment_volume_after(item, 'a')[0]
-            df.loc[item, 'moment_b'] = moment_volume_after(item, 'b')[0]
-            df.loc[item, 'moment_c'] = moment_volume_after(item, 'c')[0]
-            df.loc[item, 'moment_V'] = moment_volume_after(item, 'V')[0]
-            #
-            df.loc[item, 'volume_u'] = moment_volume_after(item, 'undeformed')[1]
-            df.loc[item, 'volume_a'] = moment_volume_after(item, 'a')[1]
-            df.loc[item, 'volume_b'] = moment_volume_after(item, 'b')[1]
-            df.loc[item, 'volume_c'] = moment_volume_after(item, 'c')[1]
-            df.loc[item, 'volume_V'] = moment_volume_after(item, 'V')[1]
-            #
-            df.loc[item, 'a_u'] = geometry_after(item, 'undeformed')[0]
-            df.loc[item, 'b_u'] = geometry_after(item, 'undeformed')[1]
-            df.loc[item, 'c_u'] = geometry_after(item, 'undeformed')[2]
+            # Get memory used for calculation
+            df.loc[item, 'memory_used'] = memory_used(item)
 
-            df.loc[item, 'a_a'] = geometry_after(item, 'a')[0]
-            df.loc[item, 'b_b'] = geometry_after(item, 'b')[1]
-            df.loc[item, 'c_c'] = geometry_after(item, 'c')[2]
-            #
+            # Get time used for calculation
+            df.loc[item, 'time_to_calculate'] = timing(item)
+
+            # Get volume after
+            df.loc[item, 'moment_u'] = moment_volume_after(item, 'undeformed')[0]
+
+            # Get moment after
+            df.loc[item, 'volume_u'] = moment_volume_after(item, 'undeformed')[1]
+
+            # Calculate mag_field after
             df.loc[item, 'magF_u'] = moment_volume_after(item, 'undeformed')[2]
-            df.loc[item, 'magF_a'] = moment_volume_after(item, 'a')[2]
-            df.loc[item, 'magF_b'] = moment_volume_after(item, 'b')[2]
-            df.loc[item, 'magF_c'] = moment_volume_after(item, 'c')[2]
-            df.loc[item, 'magF_V'] = moment_volume_after(item, 'V')[2]
-        ### placeholder for futureimplementation of site difference check
-            mag_sites_difference(item)
-            df.loc[item, 'sym_after'] = sym_after(item, 'undeformed')
-            df.loc[item, 'sym_a'] = sym_after(item, 'a')
-            df.loc[item, 'sym_b'] = sym_after(item, 'b')
-            df.loc[item, 'sym_c'] = sym_after(item, 'c')
-            df.loc[item, 'sym_V'] = sym_after(item, 'V')
+
+            # Get primitive cell parameters determined by vasp for this structure
+            df.loc[item, 'VASP_a_param'] = geometry_after(item, 'undeformed')[0]
+            df.loc[item, 'VASP_b_param'] = geometry_after(item, 'undeformed')[1]
+            df.loc[item, 'VASP_c_param'] = geometry_after(item, 'undeformed')[2]
+
+            # Get algorithm step at which optimization stopped
+            df.loc[item, 'step'] = archive_reader(item, 'undeformed')
+
             # Get energy
             df.loc[item, 'energy'] = energy(item, 'undeformed')
-            # get algorithm step at which optimization stopped
-            df.loc[item, 'step'] = archive_reader(item, 'undeformed')
+
+            # Calculate magnetoelastic parameter
+            df.loc[item, 'Mel_a'] = magnetoelastic(item, 'a')[0]
+            df.loc[item, 'Mel_b'] = magnetoelastic(item, 'b')[0]
+            df.loc[item, 'Mel_c'] = magnetoelastic(item, 'c')[0]
+
+            # placeholder for future implementation of site difference check
+            mag_sites_difference(item)
+
     df.to_csv(datalist.replace(".csv", '_out' + '.csv'))
+    # sieve(datalist.replace('.csv', '_out.csv'), 'magF_u', min_mag_field)
 
 
-###  WORKING AREA ###
-wdatalist = '../Database/TestDB/datalist_TestDB.csv'
-vasp_results_dir = '../Database/TestDB/second_run/VASP6/BEXT=0.001/outdir'
+def sieve_temp(datalist):
+    """Removes entries from datalist according to selected sieving criteria"""
 
-screener_after(wdatalist)
+    df = pd.read_csv(datalist, index_col=0, sep=',')
+    for item in df.index.tolist():
+        if df.loc[item, 'Mel_check'] == 'FALSE':
+            df = df.drop([item], axis=0)
+    df.to_csv(datalist.replace(".csv", '_Mel_sieved.csv'))
 
 
+# ------------------------------------------------------------------------------------------------------- #
+#  _____                                           _       _____ _             _     _   _                #
+# /  __ \                                         | |     /  ___| |           | |   | | | |               #
+# | /  \/ ___  _ __ ___  _ __ ___   __ _ _ __   __| |___  \ `--.| |_ __ _ _ __| |_  | |_| | ___ _ __ ___  #
+# | |    / _ \| '_ ` _ \| '_ ` _ \ / _` | '_ \ / _` / __|  `--. \ __/ _` | '__| __| |  _  |/ _ \ '__/ _ \ #
+# | \__/\ (_) | | | | | | | | | | | (_| | | | | (_| \__ \ /\__/ / || (_| | |  | |_  | | | |  __/ | |  __/ #
+#  \____/\___/|_| |_| |_|_| |_| |_|\__,_|_| |_|\__,_|___/ \____/ \__\__,_|_|   \__| \_| |_/\___|_|  \___| #
+#                                                                                                         #
+# ------------------------------------------------------------------------------------------------------- #
+
+### Setting which database we work with ###
+wdatadir_structure = '../Database/datadir_structure_relaxed/'
+
+wdatalist = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
+
+# wdatalist = '../Database/datalist.csv'
+
+# vasp_results_dir = '../Database/TestDB/second_run/1.2/outdir'
+
+# wdatalist = '../Database/TESTS/TestDB/datalist_TestDB.csv'
+# vasp_results_dir = '../Database/TESTS/TestDB/second_run/VASP6/BEXT=-0.01/outdir'
+
+# wdatalist = '../Database/TESTS/TestDB_hex/datalist_TestDB_hex.csv'
+# vasp_results_dir = '../Database/TESTS/TestDB_hex/BEXT=-0.01/outdir'
+
+# vasp_results_dir = 'D:/MCES/BEXT_out'
+vasp_results_dir = 'D:/MCES/outdir'
+
+# screener_after('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
+# sieve('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_out.csv', 'magF_u', 0.45)
+
+# sieve('D:/MCES/datalist_april_marked_Mel_sieved2.csv', 'magF_u', 0.45)
+
+# screener_after('D:/MCES/BEXT_out/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun1_success_sieved_out.csv')
+
+pi = 3.141592653
+mu0 = 4 * pi * 10 ** (-7)  # Vacuum permeability in H/m
+mB = 9.2741 * 10 ** (-24)  # Bohr magneton value in J/T
+moment_volume = (0.45 * 10 ** (-30)) / (mu0 * mB)   # Formula for internal magnetic field in Tesla
+print(moment_volume)

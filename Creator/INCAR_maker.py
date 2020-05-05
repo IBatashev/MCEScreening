@@ -5,7 +5,7 @@ import pandas as pd
 def writer(out_path, poscar_info, at_type_list):
     """Creates INCAR file based on initial POSCAR from aflow in the selected path"""
 
-    at_num = np.fromstring(poscar_info[5], dtype=np.int, sep=' ')
+    at_num = np.fromstring(poscar_info[6], dtype=np.int, sep=' ')
     datafile = pd.read_csv('recommended_PAW.csv', index_col=0, sep=',') # csv file containing all ENCUTS (ENMAX from POTCARs) and moments (from "intuition")
     encut_list = np.empty([0, 1])
     magmom = ''
@@ -34,7 +34,7 @@ def writer(out_path, poscar_info, at_type_list):
         "LCHARG = .FALSE. \n"
         "LWAVE = .FALSE. \n"
         "LREAL = A\n"
-        "BEXT = 0.001\n"             #uncomment for applied filed
+        "BEXT = -0.01\n"             # uncomment for applied filed
     )
     incar.write(
         "ENCUT = " + str(encut) + "\n"

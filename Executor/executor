@@ -1,7 +1,7 @@
 #! /bin/bash
 
 #SBATCH --partition=thchem
-#SBATCH --time=00-01:00:00
+#SBATCH --time=00-08:00:00
 #SBATCH --mem=2000
 #SBATCH -N 1 -n 4
 #SBATCH --exclude=cn06,cn07,cn08,cn09,cn10,cn11,cn12,cn30,cn31,cn60,cn61,cn62,cn63,cn69,cn72,cn73,cn85,cn86,cn87,cn58,cn59
@@ -71,13 +71,27 @@ chmod g-w /scratch/ibatashev/rundir.$SLURM_JOBID
 
 
 # ----------------------------------------------------------------------------------------
-#  __  __    _____   ______    _____
-# |  \/  |  / ____| |  ____|  / ____|
-# | \  / | | |      | |__    | (___
-# | |\/| | | |      |  __|    \___ \
-# | |  | | | |____  | |____   ____) |
-# |_|  |_|  \_____| |______| |_____/
+#   ___  ________  _____ _____
+#   |  \/  /  __ \|  ___/  ___|
+#   | .  . | /  \/| |__ \ `--.
+#   | |\/| | |    |  __| `--. \
+#   | |  | | \__/\| |___/\__/ /
+#   \_|  |_/\____/\____/\____/
+#
 # ----------------------------------------------------------------------------------------
+
+# File structure that must exist for correct exucution:
+
+# -|MCES (directory where everything related to MCES happens - any name works)
+# --*executor (this script)
+# --|inputdir
+#  --|[#ID] (a directory for each compound)
+#   ---|undeformed (optional)
+#   ---|deformation1 (optional)
+#   ---|... (as many subfolders as there are deformations)
+# --|outdir (empty folder to put run results into)
+# --|SLURM (empty folder to put slurm output files into)
+
 
 ### setting variables ###
 
@@ -157,64 +171,82 @@ mag_field_test(){
   }
 
 
-convergence_test(){
+convergence_test_EDIFF(){
   # Function to test if chosen EDIFF has been reached, takes path to calculation folder as argument
   dE=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $4}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
   deps=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $5}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
   EDIFF=$(grep "EDIFF" "$1/INCAR"  | tail -1 | awk '{print $3}')
-  RMM_step=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $2}')
-  if (( $(echo "$dE < $EDIFF" |bc -l) )) && (( $(echo "$deps < EDIFF" |bc -l) )) && (( $(echo "$RMM_step < 50" |bc -l) )) ; then # if all three checks are passed then calculation is converged
-    converged=true
+  if (( $(echo "$dE < $EDIFF" |bc -l) )) && (( $(echo "$deps < EDIFF" |bc -l) )) ; then # if all both checks are passed then calculation is converged
+    converged_EDIFF=true
   else
-    converged=false
+    converged_EDIFF=false
   fi
-  echo "convergence checked"
+  echo "EDIFF convergence checked"
   }
+
+
+convergence_test_RMM_step(){
+  # Function to test if number of RMM steps is suspiciously large, takes path to calculation folder as argument
+  RMM_step=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $2}')
+  if (( $(echo "$RMM_step < 70" |bc -l) )) ; then
+    converged_RMM_step=true
+  else
+    converged_RMM_step=false
+  fi
+  echo "RMM step convergence checked"
+}
+
 
 
 processing_results(){
   echo "processing started"
   # Function to analyse how successful was the calculation, takes outputdir/entry/subfolder as argument
   k_sigma_test "$workdir"
-  convergence_test "$workdir"
+  convergence_test_EDIFF "$workdir"
+  convergence_test_RMM_step "$workdir"
   mag_field_test "$workdir"
-  symcheck=true
 
-  # Bad result 1: accuracy not reached
-  if [ "$converged" = false ] ; then
-    echo "run failed, set accuracy not reached"
-    echo "$entry $1 | set accuracy not reached, RMM step is $RMM_step" >> $badlist
-    echo "run failed, set accuracy not reached" > "$1/fail"
-    failure=true
-  # Bad result 2: symmetry was recognized differently by vasp
-  elif [ $symcheck = false ]; then # check if symmetry after run is what we expected
-    echo "symmetry mismatch"
-    echo "$entry $1 | symmetry mismatch" >> $badlist
-    echo "symmetry mismatch" > "$1/fail"
-    failure=true
-  # Bad result 3: Occupied highest bands
-  elif grep -Fxq "Your highest band is occupied" "$workdir/OUTCAR"; then
+  # We first check if accuracy is reached, if not - this is a failed run, then we check for RMM step etc.
+  # Failures are mutually exclusive, so they are checked from more severe to less severe, once a bad result is triggered
+  # all other failure conditions are not checked.
+
+  # Bad result 1: Occupied highest bands
+  if grep -Fxq "Your highest band is occupied" "$workdir/OUTCAR"; then
     echo "Highest band occupied at some k-points"
     echo "$entry $1 | Highest band occupied at some k-points" >> $badlist
     echo "Highest band occupied at some k-points" > "$1/fail"
     failure=true
-  # Warning 1: sigma and k-point are poorly chosen
-  elif [ "$kpoint_sigma" = true ] ; then
-    echo "sigma and k-point are poorly chosen"
-    echo "$entry $1 | sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " >> $warnlist
-    echo "sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " > "$1/warning"
-    failure=false
-  # Warning 2: magnetic field after calculation is smaller than expeced
-  elif [ "$small_mag_field" = true ] && [ "$undeformed" = true ] ; then
-    echo "magnetic field is below expected threshold"
-    echo "$entry $1 | magnetic field is below expected threshold: M = $mag_field" >> $warnlist
-    echo "magnetic field is below expected threshold: M = $mag_field" > "$1/warning"
-    failure=false
+  # Bad result 2: Ediff accuracy not reached
+  elif [ "$converged_EDIFF" = false ] ; then
+    echo "run failed, set accuracy not reached: dE is $dE, deps is $deps"
+    echo "$entry $1 | set accuracy not reached: dE is $dE, deps is $deps" >> $badlist
+    echo "run failed, set accuracy not reached: dE is $dE, deps is $deps" > "$1/fail"
+    failure=true
+  # Bad result 3: Too many RMM steps:
+  elif [ "$converged_RMM_step" = false ] ; then
+    echo "run failed, too many RMM steps: RMM step is $RMM_step"
+    echo "$entry $1 | RMM step is $RMM_step" >> $badlist
+    echo "run failed, too many RMM steps: RMM step is $RMM_step" > "$1/fail"
+    failure=true
+
   # Good result:
   else
     failure=false
+    # run is a success, now we check for warnings. Warnings are NOT mutially exlusive, i.e. we can have several warnings for the same run.
+  # Warning 1: sigma and k-point are poorly chosen
+    if [ "$kpoint_sigma" = true ] ; then
+      echo "sigma and k-point are poorly chosen"
+      echo "$entry $1 | sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " >> $warnlist
+      echo "sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " > "$1/warning"
+    fi
+  # Warning 2: magnetic field after calculation is smaller than expeced
+    if [ "$small_mag_field" = true ] && [ "$undeformed" = true ] ; then
+      echo "magnetic field is below expected threshold"
+      echo "$entry $1 | magnetic field is below expected threshold: M = $mag_field" >> $warnlist
+      echo "magnetic field is below expected threshold: M = $mag_field" > "$1/warning"
+    fi
   fi
-  }
+}
 
 
 ### Main part ###
