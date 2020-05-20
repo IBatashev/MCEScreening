@@ -26,9 +26,7 @@ def status_after(datalist, outdir):
     """A function to display progress of screening or prepare a report on completed screening - a csv file with all IDs
     their with their deformations and number of warnings failures"""
 
-    # sub_calculations_list = ['a_inc', 'a_dec', 'b_inc', 'b_dec', 'c_inc', 'c_dec']
-    sub_calculations_list =[]
-
+    sub_calculations_list = ['a_inc', 'a_dec', 'b_inc', 'b_dec', 'c_inc', 'c_dec']
     fail_counter = 0
     run_counter = 0
     total_warning_counter = 0
@@ -78,9 +76,9 @@ def status_after(datalist, outdir):
                 df.loc[item, 'warnings'] = warn_counter
 
     df.to_csv((datalist.replace('.csv', '_afterRun.csv')))
-    print('Total number of calculations ', run_counter)
-    print('Total number of failures ', fail_counter)
-    print('Total number of warnings ', total_warning_counter)
+    print('Total number of calculations', run_counter)
+    print('Total number of failures', fail_counter)
+    print('Total number of warnings', total_warning_counter)
 
 
 def make_inputdir_for_rerun(datalist, inputdir_initial, inputdir_rerun):
@@ -112,7 +110,7 @@ def sieve_for_success(datalist):
             fail_counter = fail_counter + 1
 
     print('Number of successful entries', success_counter)
-    print('Number of successful entries', fail_counter)
+    print('Number of failed entries', fail_counter)
 
     df.to_csv(datalist.replace(".csv", '_success_sieved.csv'))
     df_fail.to_csv(datalist.replace(".csv", '_failed_sieved.csv'))
@@ -128,12 +126,12 @@ def sieve_for_success(datalist):
 #                                                                                                         #
 # ------------------------------------------------------------------------------------------------------- #
 
-datalist_before = 'D:/MCES/BEXT_out/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
-datalist_after = 'D:/MCES/BEXT_out/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun.csv'
-outdir = 'D:/MCES/BEXT_out'
-inputdir = 'D:/MCES/BEXTinputdir'
+datalist_before = 'D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
+datalist_after = 'D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun.csv'
+outdir = 'D:/MCES/outdir'
+inputdir = 'D:/MCES/inputdir'
 
 
 #status_before(datalist_before,inputdir)
-# status_after(datalist_after, outdir)
-sieve_for_success('D:/MCES/BEXT_out/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun1.csv')
+status_after(datalist_after, outdir)
+sieve_for_success('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun.csv')

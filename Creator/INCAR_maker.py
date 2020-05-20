@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-def writer(out_path, poscar_info, at_type_list):
+def writer(out_path, poscar_info, at_type_list, deformation):
     """Creates INCAR file based on initial POSCAR from aflow in the selected path"""
 
     at_num = np.fromstring(poscar_info[6], dtype=np.int, sep=' ')
@@ -31,10 +31,9 @@ def writer(out_path, poscar_info, at_type_list):
         "NCORE = 4 \n"
         "LASPH = .TRUE.\n"
         "GGA_COMPAT = .FALSE.\n"
-        "LCHARG = .FALSE. \n"
-        "LWAVE = .FALSE. \n"
+        #"LCHARG = .FALSE. \n"
+        #"LWAVE = .FALSE. \n"
         "LREAL = A\n"
-        "BEXT = -0.01\n"             # uncomment for applied filed
     )
     incar.write(
         "ENCUT = " + str(encut) + "\n"
@@ -42,3 +41,7 @@ def writer(out_path, poscar_info, at_type_list):
     incar.write(
         "MAGMOM = " + magmom
     )
+    if deformation == 'BEXT':
+        incar.write(
+            "BEXT = -0.01\n"  # uncomment for applied filed
+        )

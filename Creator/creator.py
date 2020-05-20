@@ -23,7 +23,7 @@ def single_run(def_type, deformation_list):
     path_to_calc = path + def_type + "/"
     os.mkdir(path_to_calc)
     POSCAR_maker.writer(path_to_calc, poscar_content, deformation_list)
-    INCAR_maker.writer(path_to_calc, poscar_content, elem_list)
+    INCAR_maker.writer(path_to_calc, poscar_content, elem_list, def_type)
     POTCAR_maker.writer(path_to_calc, elem_list)
 
 
@@ -31,6 +31,14 @@ def undeformed_lattice():
     """Creates all necessary files to run a VASP job for initial undeformed structure"""
 
     deformation_type = "undeformed"
+    deformation = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+    single_run(deformation_type, deformation)
+
+
+def applied_field():
+    """Creates all necessary files to run a VASP job for structure under applied field (value of the field set in INCAR_maker)"""
+
+    deformation_type = "BEXT"
     deformation = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
     single_run(deformation_type, deformation)
 
@@ -223,9 +231,9 @@ warnings.filterwarnings("ignore")  # slightly dirty, but simple way to disable p
 
 ### Setting which database we work with ###
 
-wdatadir_structure = '../Database/datadir_structure_relaxed/'
-wdatalist = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
-output_path = 'D:/MCES/BEXT'
+wdatadir_structure = '../Database/aflow/datadir_structure_relaxed/'
+wdatalist = 'D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_failed_sieved.csv'
+output_path = 'D:/MCES/failed_rerun_input'
 
 # wdatalist = '../Database/TESTS/TestDB/datalist_TestDB.csv'
 # wdatadir_structure = '../Database/TESTS/TestDB/datadir_TestDB/'
@@ -243,7 +251,7 @@ with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice prog
     for item in df.index.tolist():
         pbar.update(1)
         ID = str(item)
-        def_factor = 0  # deformation factor 0.05 == 5%, deformation is don both for expansion and contraction.
+        def_factor = 0.05  # deformation factor 0.05 == 5%, deformation is done both for expansion and contraction.
 
         path = output_path + 'inputdir/'+str(ID)+'/'     # Prepare folder folder where all subfolders for a single ID
         if os.path.exists(path):    # !WARNING! Overwrites existing path!
@@ -261,3 +269,9 @@ with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice prog
         else:
             undeformed_lattice()
             deformed_lattice(lat_type, def_factor)  # Create the proper number of folders for all possible deformations according to Bravais lattice type
+
+
+# pat = 'test/'
+# cont = POSCAR_reader.read('mp-778.cif')
+# deformation = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
+# POSCAR_maker.writer(pat, cont, deformation)

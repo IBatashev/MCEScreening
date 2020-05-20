@@ -22,13 +22,14 @@ Database ChangeLog
 ---
 | # | Date Created | Number of entries | Comment |
 |---|---|---|---|
-|1|23.09.19|8044|As of now mostly useless. Downloaded in 3 parts and then manually combined, archive also contains initial python scripts and some ‘in progress’ files. |
-|2|04.12.19|8970|Relatively adequate second attempt. Reworked list of allowed elements – but still with radioactive...Unfortunately, missing python script used for downloading it.|
-|3|11.12.19| 28 |Small test subset made from 2 with python script included in archive. Random seed  = 1|
-|4|22.12.19|8970|More files now – separate folders including aflow files (which contain all possible non-file tags). Instead of CONTCARs we now have aflow_structure files for both before and after relaxation containg a LOT of structural info. Contains python script used for downloading. Includes python script used for downloading. Aflow files were downloaded a week |
-|5|07.01.19|8603|Updated version of 4, radioactive things now removed. Includes script that was used to remove entries containing  U, Po, Th|
-|6|09.02.20| 31 |Small test subset made from 5 using make_test_db.py with random seed = 1. After random generation manually added Fe2P(ID=6295), FeRh(ID=6373) and LaFeSi(ID=5565)|  
-|7|31.03.20| 20 |Small test subset made from 5 using make_test_db.py with random seed = 1. All compounds are hexagonal (Fe2P(ID=6295) was already in from random|
+|a1|23.09.19|8044|As of now mostly useless. Downloaded in 3 parts and then manually combined, archive also contains initial python scripts and some ‘in progress’ files. |
+|a2|04.12.19|8970|Relatively adequate second attempt. Reworked list of allowed elements – but still with radioactive...Unfortunately, missing python script used for downloading it.|
+|a3|11.12.19| 28 |Small test subset made from 2 with python script included in archive. Random seed  = 1|
+|a4|22.12.19|8970|More files now – separate folders including aflow files (which contain all possible non-file tags). Instead of CONTCARs we now have aflow_structure files for both before and after relaxation containg a LOT of structural info. Contains python script used for downloading. Includes python script used for downloading. Aflow files were downloaded a week |
+|a5|07.01.19|8603|Updated version of 4, radioactive things now removed. Includes script that was used to remove entries containing  U, Po, Th|
+|a6|09.02.20| 31 |Small test subset made from 5 using make_test_db.py with random seed = 1. After random generation manually added Fe2P(ID=6295), FeRh(ID=6373) and LaFeSi(ID=5565)|
+|a7|31.03.20| 20 |Small test subset made from 5 using make_test_db.py with random seed = 1. All compounds are hexagonal (Fe2P(ID=6295) was already in from random|
+|MP1|13.05.20|12160| First snapshot from Materials Project same general settings as with aflow but, more info and structure files are in .cif format|
 
 Run Results
 ---
@@ -70,13 +71,11 @@ TODO
     - average memory use
     - total number of warnings
 
-    
 ---
     nn and nnn distance as screening parameter - check
     how number (distances) of nn changes in FM and AFM state - not nece, requires relaxatino   
     free volume as screening parameter (compare total cell volume with volume occupied by atoms (covalent radius))?)
     shifting magnetic sublattices against each other?
-
 ---
 
 1st make new inputdir with creator

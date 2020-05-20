@@ -1,10 +1,10 @@
 #! /bin/bash
 
 #SBATCH --partition=thchem
-#SBATCH --time=00-08:00:00
+#SBATCH --time=00-04:00:00
 #SBATCH --mem=2000
 #SBATCH -N 1 -n 4
-#SBATCH --exclude=cn06,cn07,cn08,cn09,cn10,cn11,cn12,cn30,cn31,cn60,cn61,cn62,cn63,cn69,cn72,cn73,cn85,cn86,cn87,cn58,cn59
+#SBATCH --exclude=cn06,cn08,cn09,cn10,cn11,cn12,cn30,cn31,cn58,cn59,cn60,cn61,cn62,cn63,cn69,cn73,cn85,cn86,cn87
 #SBATCH --output=/home/ibatashev/MCES/SLURM/slurm-%A.out
 #SBATCH --chdir=/scratch/ibatashev
 
@@ -71,13 +71,12 @@ chmod g-w /scratch/ibatashev/rundir.$SLURM_JOBID
 
 
 # ----------------------------------------------------------------------------------------
-#   ___  ________  _____ _____
-#   |  \/  /  __ \|  ___/  ___|
-#   | .  . | /  \/| |__ \ `--.
-#   | |\/| | |    |  __| `--. \
-#   | |  | | \__/\| |___/\__/ /
-#   \_|  |_/\____/\____/\____/
-#
+#  __  __    _____   ______    _____
+# |  \/  |  / ____| |  ____|  / ____|
+# | \  / | | |      | |__    | (___
+# | |\/| | | |      |  __|    \___ \
+# | |  | | | |____  | |____   ____) |
+# |_|  |_|  \_____| |______| |_____/
 # ----------------------------------------------------------------------------------------
 
 # File structure that must exist for correct exucution:
@@ -85,11 +84,12 @@ chmod g-w /scratch/ibatashev/rundir.$SLURM_JOBID
 # -|MCES (directory where everything related to MCES happens - any name works)
 # --*executor (this script)
 # --|inputdir
-#  --|[#ID] (a directory for each compound)
+#  --|IDNUMBER (a directory for each compound)
 #   ---|undeformed (optional)
 #   ---|deformation1 (optional)
 #   ---|... (as many subfolders as there are deformations)
 # --|outdir (empty folder to put run results into)
+# ---|fail (empty folder inside outdir to put failed runs into)
 # --|SLURM (empty folder to put slurm output files into)
 
 
@@ -128,12 +128,11 @@ zip_clean(){
   # Function to zip important VASP output files & delete everything else. Takes directory as argument
   for file in $(find $1 -maxdepth 1 -mindepth 1 -type f ! -name '.*' -printf '%f\n')
   do
-    if [[ "$file" != "OUTCAR" && "$file" != "OSZICAR" && "$file" != "IBZKPT" && "$file" != "vasprun.xml" && "$file" != "DOSCAR" && "$file" != *.out && "$file" != "$jobID" && "$file" != "fail" && "$file" != "warning" ]]
+    if [[ "$file" != "OUTCAR" && "$file" != "OSZICAR" && "$file" != "IBZKPT" && "$file" != "vasprun.xml" && "$file" != "DOSCAR" && "$file" != *.out && "$file" != "$jobID" && "$file" != "fail" && "$file" != "warning" && "$file" != "rerun_attemped" ]]
     then
       rm -f "$1/$file"
     fi
   done
-#  cd "$1" && tar -zcf "../.$path_out/output.tar.gz" * && cd "../.."
   cd "$1" && tar -zcf "../rundir.$SLURM_JOBID.tar.gz" * && cd $SLURM_SUBMIT_DIR
   }
 
@@ -176,7 +175,7 @@ convergence_test_EDIFF(){
   dE=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $4}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
   deps=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $5}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
   EDIFF=$(grep "EDIFF" "$1/INCAR"  | tail -1 | awk '{print $3}')
-  if (( $(echo "$dE < $EDIFF" |bc -l) )) && (( $(echo "$deps < EDIFF" |bc -l) )) ; then # if all both checks are passed then calculation is converged
+  if (( $(echo "$dE < $EDIFF" |bc -l) )) && (( $(echo "$deps < EDIFF" |bc -l) )) ; then # if all three checks are passed then calculation is converged
     converged_EDIFF=true
   else
     converged_EDIFF=false
@@ -195,7 +194,6 @@ convergence_test_RMM_step(){
   fi
   echo "RMM step convergence checked"
 }
-
 
 
 processing_results(){
@@ -246,6 +244,46 @@ processing_results(){
       echo "magnetic field is below expected threshold: M = $mag_field" > "$1/warning"
     fi
   fi
+
+  echo "results processed"
+}
+
+
+convergence_fail_check(){
+  echo "Checking first run for convergence failure"
+  # Function to analyse how successful was the convergence, takes outputdir/entry/subfolder as argument
+  # Runs vasp again (only once, obviously) if first check fails
+  # This is a smaller version of processing_results() that does not generate any output
+  convergence_test_EDIFF "$workdir"
+  convergence_test_RMM_step "$workdir"
+
+  # Convergence problem 1: Ediff accuracy not reached
+  if [ "$converged_EDIFF" = false ] ; then
+    echo "FAILURE: set accuracy not reached: dE is $dE, deps is $deps, performing a rerun"
+    echo "$entry $1 | Rerun performed after set accuracy not reached: dE was $dE, deps was $deps" >> $rerunlist
+    echo "$entry $1 | Rerun performed after set accuracy not reached: dE was $dE, deps was $deps"> "$1/rerun_attemped"
+    convergence_failure=true
+  # Convergence problem 2: Too many RMM steps:
+  elif [ "$converged_RMM_step" = false ] ; then
+    echo "FAILURE: too many RMM steps: RMM step is $RMM_step, performing a rerun"
+    echo "$entry $1 | Rerun performed after too many RMM steps: RMM step was $RMM_step" >> $rerunlist
+    echo "$entry $1 | Rerun performed after too many RMM steps: RMM step was $RMM_step"> "$1/rerun_attemped"
+    convergence_failure=true
+  # Good result:
+  else
+    convergence_failure=false
+  fi
+
+  if [ $convergence_failure = true ] ; then
+    echo "First run failed, attepting to rerun using obtained CHGGAR"
+    cd "$workdir"
+    echo "" >> INCAR
+    echo "ICHARG = 1" >> INCAR
+    echo "NELMDL = 10"  >> INCAR
+    echo "calling vasp to run again"
+    vasp_runner
+    echo "vasp finished the second attempt"
+  fi
 }
 
 
@@ -277,6 +315,7 @@ do
     # setting up dirs to work with
     undeformed_path="${inputdir:?}/${entry:?}/undeformed"
     path_out="$outdir/$entry/undeformed"
+    path_out_fail="$outdir/fail/$entry/undeformed"
     # Check if other script is already working with it:
     busy_flag="$undeformed_path/busy"
 
@@ -300,21 +339,24 @@ do
     # 3. check output to see the results and act accordingly:
       mkdir "$outdir/$entry" # create folder for the entry in the outdir
       mkdir "$path_out" # create undeformed subfolder in outdir/entry
-      processing_results "$path_out" # analyse results
-	  echo "results processed"
+
+      convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
+
+      processing_results "$path_out" # analyse results again
+
+      if [ $failure = true ] ; then
+        echo "First run and rerun failed, results placed in outdir, no need for deformations - removing $entry from workdir"
+        rm -r "$entry_path" # remove whole directory for this entry - no need for deformations if undeformed structure failed
+      else
+        echo "Success, results placed in outdir, undeformed folder removed"
+        rm "$workdir/fail"
+        rm -r "$undeformed_path" # remove entry/undeformed from inputdir
+      fi
 
     # 4. Saving results
       rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
       zip_clean "$workdir"
       rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
-
-      if [ $failure = true ] ; then
-        echo "Failure, results placed in outdir, no need for deformations - removing $entry from workdir"
-        rm -r "$entry_path" # remove whole directory for this entry - no need for deformations if undeformed structure failed
-      else
-        echo "Success, results placed in outdir, undeformed folder removed"
-        rm -r "$undeformed_path" # remove entry/undeformed from inputdir
-      fi
 
     # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
       rm -r "$workdir"
@@ -355,20 +397,22 @@ do
 
       # 3. grep on output to see the results and act accordingly
         mkdir "$path_out" # prepare subfolder for deformation, we expect there is already outdir/entry/ which is created during undeformed calculation
-        processing_results "$path_out" # analyse results
-		echo "results processed"
+
+        convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
+
+        processing_results "$path_out" # analyse results again
+
+        if [ $failure = true ] ; then
+          echo "First run and rerun failed, results placed in outdir"
+        else
+          echo "Success, results placed in outdir"
+        fi
+        rm -r "$def_path" # deformation folder is removed from inputdir/entry
 
       # 4. Saving results:
         rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
         zip_clean "$workdir"
         rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
-
-        if [ $failure = true ] ; then
-          echo "Failure, results placed in outdir"
-        else
-          echo "Success, results placed in outdir"
-        fi
-        rm -r "$def_path" # deformation folder is removed from inputdir/entry
 
       # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
         rm -r "$workdir"

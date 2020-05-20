@@ -4,9 +4,12 @@ import os
 import numpy as np
 import tqdm
 import tarfile
+import matplotlib.pyplot as plt
+from pymatgen.io.vasp import Poscar
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 ### LOCAL IMPORTS ###
 import POSCAR_reader
-import matplotlib.pyplot as plt
+
 
 
 def calculate_mag_field(moment, volume):
@@ -68,6 +71,35 @@ def mag_sites_calculator(ID):
                             elem = species_list[n]
                         eltable = np.append(eltable, [[elem, wyckoff]], axis=0)
     # This section with masks probably could be done better and shorter but with such small arrays it shouldn't matter much
+    mask = np.in1d(eltable[:, 0], magnetic)  # Check what entries in Wyckoff list are in list of magnetic atoms
+    eltable2 = eltable[mask]                 # new array of only magnetic ones using previous mask
+    unique_keys, mask2 = np.unique(eltable2[:, 1], return_index=True)  # check what entries of the new array have unique wyckoff sites - creates a list of indicies corresponding to said entries
+    site_counter = np.size(eltable2[mask2], axis=0)                    # get number of unique sites counting number of obtained indicies
+    return site_counter
+
+
+def mag_sites_calculator_MP(ID):
+    """Determines how many unique magnetic sites are present in the structure.
+    Takes ID as input, looks up structure file in the datadir and returns number of unique sites as integer"""
+
+    ### List of Magnetic Atoms
+    magnetic = [ 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu',  # Sc, Y, and everythong else is considered not magnetic
+                 'Nb', 'Mo', 'Ru', 'Rh', 'Pd', # we sieve out Cd at earliear step, so I could have ommitted it from this list but this approach is more "universal"
+                 'Ce', 'Pr', 'Nd', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb']
+
+    eltable = np.empty([0, 2])
+    # df = pd.read_csv(wdatalist, index_col=0, sep=',')
+    structure_file = wdatadir_structure + str(ID) + '.cif'
+    poscar_content = POSCAR_reader.read(structure_file)
+    poscar_string = ''.join(poscar_content)       # merging poscar content in a single string so pymatgen can read it
+    poscar = Poscar.from_string(poscar_string)    # using pymatgen to acquire our structure from poscar content
+    structure = poscar.structure
+    analyzed_structure = str(SpacegroupAnalyzer(structure).get_symmetrized_structure()).split('\n')
+    for num,  line in enumerate(analyzed_structure):
+        if num > 7:
+            elem = line.split()[1]  # element symbol is after Wyckoff x y z coordinates so 4th item in list
+            wyckoff = line.split()[5]
+            eltable = np.append(eltable, [[elem, wyckoff]], axis=0)
     mask = np.in1d(eltable[:, 0], magnetic)  # Check what entries in Wyckoff list are in list of magnetic atoms
     eltable2 = eltable[mask]                 # new array of only magnetic ones using previous mask
     unique_keys, mask2 = np.unique(eltable2[:, 1], return_index=True)  # check what entries of the new array have unique wyckoff sites - creates a list of indicies corresponding to said entries
@@ -257,7 +289,7 @@ def screener_before(datalist):
         for item in df.index.tolist():
             pbar.update(1)                              # Updating progress bar at each step
         ### Write number of sites into datalist:
-            df.loc[item, 'mag_sites'] = mag_sites_calculator(item)
+            df.loc[item, 'mag_sites'] = mag_sites_calculator_MP(item)
         ### Write internal magnetic field into datalist:
             df.loc[item, 'mag_field'] = calculate_mag_field(df.loc[item, 'moment_cell'], df.loc[item, 'volume_cell'])
         ### Check if universal scaling factor is 1.0, othervise results for magnetic field calculaded using aflow data are unreliable
@@ -362,13 +394,14 @@ def sieve_temp(datalist):
 # ------------------------------------------------------------------------------------------------------- #
 
 ### Setting which database we work with ###
-wdatadir_structure = '../Database/datadir_structure_relaxed/'
+# wdatadir_structure = '../Database/aflow/datadir_structure_relaxed/'
+# wdatalist = '../Database/aflow/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
 
-wdatalist = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
 
-# wdatalist = '../Database/datalist.csv'
+wdatadir_structure = '../Database/MP/datadir/'
+wdatalist = '../Database/MP/datalist.csv'
 
-# vasp_results_dir = '../Database/TestDB/second_run/1.2/outdir'
+screener_before(wdatalist)
 
 # wdatalist = '../Database/TESTS/TestDB/datalist_TestDB.csv'
 # vasp_results_dir = '../Database/TESTS/TestDB/second_run/VASP6/BEXT=-0.01/outdir'
@@ -386,8 +419,3 @@ vasp_results_dir = 'D:/MCES/outdir'
 
 # screener_after('D:/MCES/BEXT_out/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun1_success_sieved_out.csv')
 
-pi = 3.141592653
-mu0 = 4 * pi * 10 ** (-7)  # Vacuum permeability in H/m
-mB = 9.2741 * 10 ** (-24)  # Bohr magneton value in J/T
-moment_volume = (0.45 * 10 ** (-30)) / (mu0 * mB)   # Formula for internal magnetic field in Tesla
-print(moment_volume)
