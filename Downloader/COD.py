@@ -2,6 +2,7 @@ import os
 import tqdm
 import numpy as np
 import pandas as pd
+import shutil
 from pymatgen.io.cif import CifParser
 import pymatgen.symmetry.analyzer
 from pymatgen.io.vasp import Poscar
@@ -34,7 +35,7 @@ def make_path_list():
                         f.write('\n')
 
 
-def scan(pathlist):
+def first_scan(pathlist):
     with open('datalist_COD.csv', 'a') as datalist:  # we create a csv file to write info into
         datalist.write("COD_ID,path,pretty_formula,compound,lattice_system,spacegroup,species,volume_cell,mag_sites,comment1,doi\n")
     no_pretty_formula_counter = 0
@@ -70,7 +71,7 @@ def scan(pathlist):
 
                         if not banlist_match:
                             try:
-                                COD_id = content.split('_cod_database_code')[1].split('\n')[0].strip(' ')
+                                COD_id = content.split('data_')[1].split('\n')[0].strip(' ')
                             except:
                                 COD_id = 'na'
                             try:
@@ -119,67 +120,30 @@ def scan(pathlist):
     print('No chemical composition given in cif for ', no_pretty_formula_counter, ' entries')
 
 
-def mag_sites_calculator(ID):
-    """Determines how many unique magnetic sites are present in the structure.
-    Takes ID as input, looks up structure file in the datadir and returns number of unique sites as integer"""
-
-    ### List of Magnetic Atoms
-    magnetic = [ 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu',  # Sc, Y, and everythong else is considered not magnetic
-                 'Nb', 'Mo', 'Ru', 'Rh', 'Pd', # we sieve out Cd at earliear step, so I could have ommitted it from this list but this approach is more "universal"
-                 'Ce', 'Pr', 'Nd', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb']
-    bad_notation = False                                                    # sometimes aflow files have alphabet instead of element symbols in structure POSCAR I call it bad notation
-    rename_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']   # A list for fixing bad notation
-                                                                            # I don't expect there to be a composition with more than 11 distinctive components so here I stop at K
-
-    eltable = np.empty([0, 2])
-
-    structure_file = wdatadir_structure + df.loc[str(ID), 'path']
-
-    parser = CifParser(structure_file)  # create structure from .cif using pymatgen
-    structure = parser.get_structures()[0]
-    print(pymatgen.symmetry.analyzer.SpacegroupAnalyzer(structure))
-
-
-    # p_content = Poscar(structure)  # create poscar from structure
-    # p = str(p_content).split('\n')  # These two lines are to remodel poscar_content to the same
-    # poscar_content = [string + '\n' for string in p]  # data format we get from aflow - a list of strings
+def reorganize(datalist, destination):
+    df = pd.read_csv(datalist, index_col=0, sep=',', low_memory=False)
+    with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice progress bar
+        pbar.set_description("Processing datalist")
+        for item in df.index.tolist():
+            pbar.update(1)  # Updating progress bar at each step
+            source = 'D:/' + df.loc[item, 'filepath']
+            # with open('testlist', "a") as f:
+            #     f.write(str(source)+'\n')
+            shutil.move(source, destination)
 
 
 
-    # with open(structure_file, 'r') as f:    # need to get all atoms from Wyckoff subsection of structure file
-    #     for line in f:
-    #         if 'Representative' in line:    # subsection we are interested in goes after line with word "Representative"
-    #             for line in f:              # now you are at the lines you want
-    #                 if 'WYCCAR' in line:    # Ends before line with "WYCCAR"
-    #                     break
-    #                 else:
-    #                     elem = line.split()[3]  # element symbol is after Wyckoff x y z coordinates so 4th item in list
-    #                     wyckoff = line.split()[4]+line.split()[5]
-    #                     if elem == 'A':         # check if notation is shitty - in this case first element is represented with letter A (fortunately there is no element in periodic table labeled with A)
-    #                         bad_notation = True
-    #                     if bad_notation == True:# Apply correction for bad notation replacing all alphabet letters with proper chemical symbols taken from list of elements in composition
-    #                         n = rename_list.index(elem)
-    #                         temp_line = (df.loc[ID, 'species']).strip('[').strip(']').strip(' ')
-    #                         temp_line2 = temp_line.replace("'", "")
-    #                         species_list = np.asarray(temp_line2.split('; '))
-    #                         elem = species_list[n]
-    #                     eltable = np.append(eltable, [[elem, wyckoff]], axis=0)
-    # # This section with masks probably could be done better and shorter but with such small arrays it shouldn't matter much
-
-    # mask = np.in1d(eltable[:, 0], magnetic)  # Check what entries in Wyckoff list are in list of magnetic atoms
-    # eltable2 = eltable[mask]                 # new array of only magnetic ones using previous mask
-    # unique_keys, mask2 = np.unique(eltable2[:, 1], return_index=True)  # check what entries of the new array have unique wyckoff sites - creates a list of indicies corresponding to said entries
-    # site_counter = np.size(eltable2[mask2], axis=0)                    # get number of unique sites counting number of obtained indicies
-    # return site_counter
-
-
+dest = 'D:/MCES/COD/datadir'
 wdatalist = 'datalist_COD.csv'
-wdatadir_structure = 'D:/'
 
-df = pd.read_csv(wdatalist, index_col=0, sep=',')
-# with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice progress bar
-#     pbar.set_description("Processing datalist")
-#     for item in df.index.tolist():
-#         pbar.update(1)  # Updating progress bar at each step
 
-mag_sites_calculator(1004018)
+
+# first_scan('COD_all_paths')
+
+# wdatadir_structure = 'D:/'
+#
+# reorganize(wdatalist, dest)
+#
+# df = pd.read_csv(wdatalist, index_col=0, sep=',', low_memory=False)
+# source = df.loc['1000094', 'filepath']
+# print(source)

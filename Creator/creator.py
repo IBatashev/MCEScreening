@@ -23,7 +23,7 @@ def single_run(def_type, deformation_list):
     path_to_calc = path + def_type + "/"
     os.mkdir(path_to_calc)
     POSCAR_maker.writer(path_to_calc, poscar_content, deformation_list)
-    INCAR_maker.writer(path_to_calc, poscar_content, elem_list, def_type)
+    INCAR_maker.writer_second(path_to_calc, poscar_content, elem_list, def_type)
     POTCAR_maker.writer(path_to_calc, elem_list)
 
 
@@ -66,7 +66,7 @@ def deformed_lattice(lattice_type, n):
     # "MCLC"    13 Base centered monoclinic
     # "TRI"     14 Triclinic
 
-    if lattice_type == "CUB" or lattice_type == "FCC" or lattice_type == "BCC":
+    if lattice_type == "cubic":
         deformation_types = ['a_dec', 'a_inc']
         for deformation_type in deformation_types:
             if deformation_type == "a_dec":
@@ -76,7 +76,7 @@ def deformed_lattice(lattice_type, n):
                 deformation_matrix = np.array([[1+n, 1+n, 1+n], [1+n, 1+n, 1+n], [1+n, 1+n, 1+n]])
                 single_run(deformation_type, deformation_matrix)
 
-    elif lattice_type == "HEX":
+    elif lattice_type == "hexagonal":
         deformation_types = ['a_dec', 'c_dec', 'a_inc', 'c_inc']
         for deformation_type in deformation_types:
             if deformation_type == "a_dec":
@@ -92,7 +92,7 @@ def deformed_lattice(lattice_type, n):
                 deformation_matrix = np.array([[1, 1, 0], [1, 1, 0], [0, 0, 1+n]])
                 single_run(deformation_type, deformation_matrix)
 
-    elif lattice_type == "RHL":
+    elif lattice_type == "rhombohedral" or lattice_type == "trigonal":
         # Stil confused by how aflow describes rhombohedral lattice BUT for RHL we always have a=b=c so we just need to
         # steach everything once (see cubic) and we should be good.
         deformation_types = ['a_dec', 'a_inc']
@@ -104,7 +104,7 @@ def deformed_lattice(lattice_type, n):
                 deformation_matrix = np.array([[1+n, 1+n, 1+n], [1+n, 1+n, 1+n], [1+n, 1+n, 1+n]])
                 single_run(deformation_type, deformation_matrix)
 
-    elif lattice_type == "TET" or lattice_type == "BCT":
+    elif lattice_type == "tetragonal":
         deformation_types = ['a_dec', 'c_dec', 'a_inc', 'c_inc']
         for deformation_type in deformation_types:
             if deformation_type == "a_dec":
@@ -120,7 +120,7 @@ def deformed_lattice(lattice_type, n):
                 deformation_matrix = np.array([[1, 1, 1+n], [1, 1, 1+n], [1, 1, 1+n]])
                 single_run(deformation_type, deformation_matrix)
 
-    elif lattice_type == "ORC" or lattice_type == "ORCC" or lattice_type == "ORCI" or lattice_type == "ORCF":
+    elif lattice_type == "orthorhombic":
         deformation_types = ['a_dec', 'b_dec', 'c_dec', 'a_inc', 'b_inc', 'c_inc']
         for deformation_type in deformation_types:
             if deformation_type == "a_dec":
@@ -142,7 +142,7 @@ def deformed_lattice(lattice_type, n):
                 deformation_matrix = np.array([[1, 1, 1+n], [1, 1, 1+n], [1, 1, 1+n]])
                 single_run(deformation_type, deformation_matrix)
 
-    elif lattice_type == "MCL" or lattice_type == "MCLC":
+    elif lattice_type == "monoclinic":
         deformation_types = ['a_dec', 'b_dec', 'c_dec', 'a_inc', 'b_inc', 'c_inc']
         for deformation_type in deformation_types:
             if deformation_type == "a_dec":
@@ -164,7 +164,7 @@ def deformed_lattice(lattice_type, n):
                 deformation_matrix = np.array([[1, 1, 1], [1, 1, 1], [1+n, 1+n, 1+n]]) # Aflow for some reason is different for a3 = ccosβx^+csinβz so 'a1' and 'a2' are switched leading to 'a' and 'b' being switched
                 single_run(deformation_type, deformation_matrix)
 
-    elif lattice_type == "TRI":
+    elif lattice_type == "triclinic":
         deformation_types = ['a_dec', 'b_dec', 'c_dec', 'a_inc', 'b_inc', 'c_inc']
         for deformation_type in deformation_types:
             if deformation_type == "a_dec":
@@ -206,6 +206,7 @@ def parseArguments():
     return args
 
 
+
 # ------------------------------------------------------------------------------------------------------- #
 #  _____                                           _       _____ _             _     _   _                #
 # /  __ \                                         | |     /  ___| |           | |   | | | |               #
@@ -231,44 +232,41 @@ warnings.filterwarnings("ignore")  # slightly dirty, but simple way to disable p
 
 ### Setting which database we work with ###
 
-wdatadir_structure = '../Database/aflow/datadir_structure_relaxed/'
-wdatalist = 'D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_failed_sieved.csv'
-output_path = 'D:/MCES/failed_rerun_input'
+wdatadir = '../Database/aflow/datadir_structure_relaxed/'
+# wdatadir = 'D:/MCES/Aflow/second stage test 2/datadir_updated/'
+wdatalist = 'D:/MCES/Aflow/second stage test 3/datalist_test.csv'
+output_path = 'D:/MCES/Aflow/second stage test 3/'
 
-# wdatalist = '../Database/TESTS/TestDB/datalist_TestDB.csv'
-# wdatadir_structure = '../Database/TESTS/TestDB/datadir_TestDB/'
-# output_path = '../Database/TESTS/TestDB/datadir_TestDB/'
+runtype = 'first, BEXT, deformed'
 
-# wdatalist = '../Database/TESTS/TestDB_hex/datalist_TestDB_hex.csv'
-# wdatadir_structure = '../Database/TESTS/TestDB_hex/datadir_TestDB_hex/'
-# output_path = '../Database/TESTS/TestDB_hex/datadir_TestDB_hex/'
-
+def_factor = 0  # deformation factor 0.05 == 5%, deformation is done both for expansion and contraction.
 
 df = pd.read_csv(wdatalist, index_col=0, sep=',')
-
 with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice progress bar
     pbar.set_description("Processing datalist")
     for item in df.index.tolist():
         pbar.update(1)
-        ID = str(item)
-        def_factor = 0.05  # deformation factor 0.05 == 5%, deformation is done both for expansion and contraction.
+        ID = str(item).split('.')[0]
 
-        path = output_path + 'inputdir/'+str(ID)+'/'     # Prepare folder folder where all subfolders for a single ID
-        if os.path.exists(path):    # !WARNING! Overwrites existing path!
-            shutil.rmtree(path)     #
-        os.makedirs(path)           #
+        path = output_path + 'inputdir/' + str(ID) + '/'  # Prepare folder folder where all subfolders for a single ID
+        if os.path.exists(path):  # !WARNING! Overwrites existing path!
+            shutil.rmtree(path)  #
+        os.makedirs(path)  #
 
         ### Take all information from poscar as list of strings:
-        structure_file = wdatadir_structure + str(ID)
+        structure_file = wdatadir + (str(ID)) #+ '.cif'
         poscar_content = POSCAR_reader.read(structure_file)
-        lat_type = (df.loc[item, 'Bravais_lattice'])
+        lat_type = (df.loc[item, 'lattice_system'])
         elem_list = (df.loc[item, 'species']).replace(';', ',').replace("'", "").strip('][').split(', ')
 
-        if def_factor == 0:            # Check if we want deformation to happen
-            undeformed_lattice()       # Create a folder for a job without any deformation
+        if def_factor == 0:  # Check if we want deformation to happen
+            undeformed_lattice()  # Create a folder for a job without any deformation
+            #applied_field()
         else:
             undeformed_lattice()
+            #applied_field()
             deformed_lattice(lat_type, def_factor)  # Create the proper number of folders for all possible deformations according to Bravais lattice type
+
 
 
 # pat = 'test/'

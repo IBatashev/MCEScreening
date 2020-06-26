@@ -12,7 +12,7 @@ import warnings
 # this file True or False is listed for all deformations to show which match with undeformed symmetries and which do not
 
 
-def step_one(datalist, prec=0.01, angle_prec=5.0, start=-1):
+def step_one(datalist, prec=0.1, angle_prec=5.0, start=-1):
     """ Function that reads through inputdir and uses pymatgen to determine the symmetry group of undeformed structure
     and all it's deformations and writes result to a new .csv file.
     takes symmetry tolerance, angle tolerance and  starting position in datalist as argument (to continue in case of interruptions)
@@ -23,21 +23,21 @@ def step_one(datalist, prec=0.01, angle_prec=5.0, start=-1):
     with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice progress bar
         pbar.set_description("Processing datalist")
         for item in df.index.tolist():
-            if int(item) < start:
-                pbar.update(1)
-                continue
-            else:
-                pbar.update(1)
-                for deformation in os.listdir(wdatadir + str(item)):
-                    try:
-                        poscar = Poscar.from_file(wdatadir + str(item) + '/' + deformation + '/' + 'POSCAR')
-                        structure = poscar.structure
-                        df.loc[item, str(deformation)] = str(structure.get_space_group_info(symprec=prec, angle_tolerance=angle_prec))
-                        df.to_csv((datalist.replace('.csv', '_sym_check.csv')))
-                    except:
-                        print("Something is wrong with ", item, ' ', deformation,
-                              " and I don't really know why, maybe structure file is not recognized by pymatgen")
-                        df.loc[item, str(deformation)] = "pymatgen failure"
+            # if int(item) < start:
+            #     pbar.update(1)
+            #     continue
+            # else:
+            pbar.update(1)
+            for deformation in os.listdir(wdatadir + str(item)):
+                try:
+                    poscar = Poscar.from_file(wdatadir + str(item) + '/' + deformation + '/' + 'POSCAR')
+                    structure = poscar.structure
+                    df.loc[item, str(deformation)] = str(structure.get_space_group_info(symprec=prec, angle_tolerance=angle_prec))
+                    df.to_csv((datalist.replace('.csv', '_sym_check.csv')))
+                except:
+                    print("Something is wrong with ", item, ' ', deformation,
+                          " and I don't really know why, maybe structure file is not recognized by pymatgen")
+                    df.loc[item, str(deformation)] = "pymatgen failure"
 
 
 def step_two(datalist):
@@ -117,9 +117,8 @@ def single_test(item):
         try:
             poscar = Poscar.from_file(wdatadir + str(item) + '/' + deformation + '/' + 'POSCAR')
             structure = poscar.structure
-
-            #print(structure.lattice) # uncomment to print lattice matrix
             print(deformation, structure.get_space_group_info())
+            print(structure.lattice) # uncomment to print lattice matrix
         except:
             print("Something is wrong with ", item, ' ', deformation, " and I don't really know why, maybe structure file is not recognized by pymatgen")
 
@@ -142,10 +141,16 @@ def single_test(item):
 # wdatalist = '../Database/TESTS/TestDB/datalist_TestDB.csv'
 # wdatadir = '../Database/TESTS/TestDB/datadir_TestDB/inputdir/'
 
-wdatalist = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
-wdatadir = 'D:/MCES/inputdir/'
+# wdatalist = '../Database/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
+# wdatadir = 'D:/MCES/inputdir/'
 
-#
+
+wdatalist = '../Database/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
+wdatadir = 'D:/MCES/MP/inputdir/'
+
+# wdatalist = 'D:/MCES/MP/test4/datalist_MP_lattfix.csv'
+# wdatadir = 'D:/MCES/MP/test4/inputdir/'
+
 # Performing symmetry check:
 # Recognising symmetries for this structure and deformations
 step_one(wdatalist)
@@ -153,7 +158,8 @@ step_one(wdatalist)
 step_two(wdatalist.replace('.csv', '_sym_check.csv'))
 # Creating a datalist containing only entries with some kind of symmetry mismatch
 step_three(wdatalist.replace('.csv', '_sym_check_marked.csv'))
-# Optionally uncomment following two lines to keep files created during step and step two:
-os.remove(wdatalist.replace('.csv', '_sym_check.csv'))
-os.remove(wdatalist.replace('.csv', '_sym_check_marked.csv'))
-
+# Optionally comment following two lines to keep files created during step and step two:
+# os.remove(wdatalist.replace('.csv', '_sym_check.csv'))
+# os.remove(wdatalist.replace('.csv', '_sym_check_marked.csv'))
+#
+#single_test('mp-10118')

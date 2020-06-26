@@ -1,0 +1,355 @@
+#! /bin/bash
+
+#SBATCH --partition=thchem
+#SBATCH --time=00-04:00:00
+#SBATCH --mem=2000
+#SBATCH -N 1 -n 10
+#SBATCH --exclude=cn06,cn08,cn09,cn10,cn11,cn12,cn30,cn31,cn58,cn59,cn60,cn61,cn62,cn63,cn69,cn73,cn85,cn86,cn87
+#SBATCH --output=/home/ibatashev/MCES/SLURM/slurm-%A.out
+#SBATCH --chdir=/scratch/ibatashev
+
+#NOTE: change "LOGINNAME" into own login name throughout
+#NOTE: /scratch/LOGINNAME should be an existing directory on all possible clusternodes you select
+#NOTE: /home/LOGINNAME/SLURM should be an existing directory
+
+# use bash as shell
+# select partition: thchem, thchemhp, thchemdebug, or cncz
+# time: days, hours, minutes, second
+# memory in MB
+# -N nodes (always 1), -n cores
+# nodes in partition that are excluded,
+#   the thchem partition has: cn06,cn07,cn08,cn09,cn10,cn11,cn12,cn21,cn22,cn23,cn30,cn31,cn60,cn61,cn62,cn63,cn69,cn72,cn73,cn85,cn86,cn87,cn58,cn59
+#   history: cn06-cn09: the MTIN nodes
+#            cn21-cn23: the IPP nodes
+#   the cncz partition has: cn00,cn13,cn99
+# global location for stderr, can use /vol/temp alternatively
+# prevening an error message by starting in /scratch/LOGINNAME (should exist!) on run node
+
+# ----------------------------------------------------------------------------------------
+# BEWARE: this job is for using the default, i.e. open MPI, as installed on the cluster.
+# The path to the INTEL MPI should NOT be set. Do not source the INTEL paths.
+# The path needed for INTEL mkl, scaLAPACK and FFTW is set in mpirun.
+# ----------------------------------------------------------------------------------------
+
+# This selects the vasp executable
+# ubuntu16:
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_gam.5.4.4.ifort19.opmi
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_ncl.5.4.4.ifort19.opmi
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_std.5.4.4.ifort19.opmi
+# ubuntu18:
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_gam.5.4.4.ifort19.ubuntu18.ompi
+# exe=/vol/thchem/dewijs/vasp/exe/vasp_ncl.5.4.4.ifort19.ubuntu18.ompi
+
+# VASP 5
+#exe=/vol/thchem/dewijs/vasp/exe/vasp_std.5.4.4.ifort19.ubuntu18.ompi
+# VASP 6  to use BEXT
+exe=/vol/thchem/dewijs/vasp/exe/vasp_std.Ivan.ifort19.ubuntu18.ompi
+
+# needed
+ulimit -s unlimited
+ulimit -s
+
+# environment variables:
+#   $SLURM_JOBID    the number of the job
+#   $SLURM_SUBMIT_HOST  the node on which the job was submitted
+#   $SLURM_SUBMIT_DIR   the directory on this node from where the job was submitted
+echo ""
+echo "\$SLURM_JOBID       "$SLURM_JOBID
+echo "\$SLURM_SUBMIT_HOST "$SLURM_SUBMIT_HOST
+echo "\$SLURM_SUBMIT_DIR  "$SLURM_SUBMIT_DIR
+echo ""
+
+# Make unique directory on host that runs the program,
+# prevent "others" from reading, etc, and "group" from writing,
+# and copy (well... rsync) the inputfiles to this unique directory,
+# and go into this unique directory.
+# NOTE: /scratch/LOGINNAME should already be present!
+
+mkdir /scratch/ibatashev/rundir.$SLURM_JOBID
+chmod o-rwx /scratch/ibatashev/rundir.$SLURM_JOBID
+chmod g-w /scratch/ibatashev/rundir.$SLURM_JOBID
+
+
+# ----------------------------------------------------------------------------------------
+#  __  __    _____   ______    _____
+# |  \/  |  / ____| |  ____|  / ____|
+# | \  / | | |      | |__    | (___
+# | |\/| | | |      |  __|    \___ \
+# | |  | | | |____  | |____   ____) |
+# |_|  |_|  \_____| |______| |_____/
+# ----------------------------------------------------------------------------------------
+
+# File structure that must exist for correct exucution:
+
+# -|MCES (directory where everything related to MCES happens - any name works)
+# --*executor (this script)
+# --|inputdir
+#  --|IDNUMBER (a directory for each compound)
+#   ---|undeformed (optional)
+#   ---|deformation1 (optional)
+#   ---|... (as many subfolders as there are deformations)
+# --|outdir (empty folder to put run results into)
+# ---|fail (empty folder inside outdir to put failed runs into)
+# --|SLURM (empty folder to put slurm output files into)
+
+
+### setting variables ###
+
+jobID=$SLURM_JOBID
+workdir="/scratch/ibatashev/rundir.$SLURM_JOBID"
+inputdir="$SLURM_SUBMIT_DIR/inputdir"
+outdir="$SLURM_SUBMIT_DIR/outdir"
+badlist="$SLURM_SUBMIT_DIR/badlist"
+warnlist="$SLURM_SUBMIT_DIR/warnlist"
+rerunlist="$SLURM_SUBMIT_DIR/rerunlist"
+progresslist="$SLURM_SUBMIT_DIR/progresslist"
+
+### defining functions ###
+
+timestamp() {
+  date +"%T"
+}
+
+
+vasp_runner(){
+  # function to call vasp executable
+  cd /scratch/ibatashev/rundir.$SLURM_JOBID
+  mpirun -x LD_LIBRARY_PATH=/vol/opt/intelcompilers/intel-2019/compilers_and_libraries_2019.1.144/linux/mkl/lib/intel64 $exe 1>stdout.out 2>/dev/null
+  #echo "/home/ibatashev/SLURM/slurm-"$SLURM_JOBID".out" >> slurm_stder.$SLURM_JOBID
+  #scp slurm_stder.$SLURM_JOBID $SLURM_SUBMIT_HOST:$SLURM_SUBMIT_DIR
+
+  if [ -f "stdout" ]
+  then
+  rm stdout
+  fi
+  if [ -f "stderr" ]
+  then
+  rm stderr
+  fi
+
+  cd "$SLURM_SUBMIT_DIR"
+  }
+
+
+zip_clean(){
+  cd "$1"
+  tar -zcf "../rundir.$SLURM_JOBID.tar.gz" OUTCAR OSZICAR vasprun.xml DOSCAR CONTCAR IBZKPT *.out
+  cd $SLURM_SUBMIT_DIR
+  }
+
+
+k_sigma_test(){
+  # Function to test choice of kpoint and sigma values, takes path to calculation folder as argument
+  N_atoms=$(grep  -A 1 "Atomic configuration"  "$1/OUTCAR" | tail -1 | awk '{print$1}')
+  E_wo_entropy=$(grep -A 2  "free  energy   TOTEN" "$1/OUTCAR"  | tail -1 | awk '{print $4}')
+  F=$(grep "free  energy   TOTEN" "$1/OUTCAR"  | tail -1 | awk '{print $5}')
+  E0=$(grep -A 2  "free  energy   TOTEN" "$1/OUTCAR"  | tail -1 | awk '{print $7}')
+
+  E_diff1=$(awk "BEGIN { dif = (-( $F - ($E0))/$N_atoms); printf \"%.8f\", dif }") # the difference dE between F (free energy) and and E0 (sigma->0) is smaller than the accuracy from expected convergence
+  E_diff2=$(awk "BEGIN { dif = (-( $F - ($E_wo_entropy))/$N_atoms); printf \"%.8f\", dif }") # the difference dE between F (free energy) and energy without entropy is smaller than the accuracy
+
+  if (( $(echo "$E_diff1 < 0.001" |bc -l) )) || (( $(echo "$E_diff2 < 0.001" |bc -l) )) ; then # if either of above Energy differences is above 1meV than a warning is issued
+    kpoint_sigma=false
+  else
+    kpoint_sigma=true
+  fi
+  echo "sigma and k-points checked"
+  }
+
+
+mag_field_test(){
+  tot_moment=$(grep "tot"  "$1/OUTCAR" | tail -2 | head -1 | awk '{print$NF}')
+  volume=$(grep "volume of cell" "$1/OUTCAR" | tail -1 | awk '{print$NF}')
+  pi=3.141592653
+  mag_field=$(awk "BEGIN { field = ( (4*$pi*0.1*$tot_moment*9.2741)/$volume ); printf \"%.8f\", field }")
+  if (( $(echo "$mag_field > 0.45" |bc -l) )) ; then # if field is below our limit after calculation a warning is issued
+    small_mag_field=false
+  else
+    small_mag_field=true
+  fi
+  echo "magnetic field checked"
+  }
+
+
+getting_EDIFF(){
+  # Function to get EDIFF, takes path to calculation folder as argument
+  dE=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $4}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
+  deps=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $5}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
+  EDIFF=$(grep "EDIFF" "$1/INCAR"  | tail -1 | awk '{print $3}')
+  }
+
+
+getting_step(){
+  # Function get the number of RMM steps, takes path to calculation folder as argument
+  step=$(grep "F" "$1/OSZICAR"  | tail -1 | awk '{print $1}')
+}
+
+getting_forses_stress(){
+  # Function to get stress and forces, takes path to calculation folder as argument
+  pressure=$(grep "in kB" "$1/OUTCAR" | tail -1)
+}
+
+
+
+processing_results(){
+  echo "processing started"
+  # Function to analyse the calculation, takes outputdir/entry/subfolder as argument
+
+  getting_EDIFF "$workdir"
+  getting_RMM_step "$workdir"
+  getting_forses_stress "$workdir"
+  k_sigma_test "$workdir"
+  mag_field_test "$workdir"
+
+  # Reporting results result:
+
+  echo "$entry $runcounter  dE = $dE, deps = $deps, step = $step, V = $volume, stress = $pressure"
+  echo "$entry $runcounter  dE = $dE, deps = $deps, step = $step, V = $volume, stress = $pressure" >> $progresslist
+  echo "$entry $runcounter  dE = $dE, deps = $deps, step = $step, V = $volume, stress = $pressure" >> "$1/progress"
+
+# Warning 1: sigma and k-point are poorly chosen
+  if [ "$kpoint_sigma" = true ] ; then
+    echo "sigma and k-point are poorly chosen"
+    echo "$entry $runcounter | sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " >> $warnlist
+    echo "sigma and k-point are poorly chosen: Entropy: $E_diff2 eV, sigma -> 0: $E_diff1 eV " >> "$1/warning"
+  fi
+# Warning 2: magnetic field after calculation is smaller than expeced
+  if [ "$small_mag_field" = true ] && [ "$undeformed" = true ] ; then
+    echo "magnetic field is below expected threshold"
+    echo "$entry $1 | magnetic field is below expected threshold: M = $mag_field" >> $warnlist
+    echo "magnetic field is below expected threshold: M = $mag_field" >> "$1/warning"
+  fi
+# Warning 3: Occupied highest bands
+  if grep -Fxq "Your highest band is occupied" "$workdir/OUTCAR"; then
+    echo "Highest band occupied at some k-points"
+    echo "$entry $1 | Highest band occupied at some k-points" >> $warnlist
+    echo "Highest band occupied at some k-points" >> "$1/warning"
+  fi
+  echo "results processed"
+}
+
+
+
+### Main part ###
+sleep $((RANDOM % 60))
+echo "$(timestamp): Starting..."
+
+# Main loop that walks through directory with our database and tries to find something to run
+for entry in $(find $inputdir -maxdepth 1 -mindepth 1 -type d ! -name '.*' -printf '%f\n') # NOTE: will fail for filenames containing spaces and similar, but we should't have them anyway
+do
+  # First we declare paths to work with for chosen entry
+  echo "$(timestamp): Trying entry $entry"
+
+  # setting directory to work with for this entry
+  entry_path="$inputdir/${entry:?}" # extra caution on a slightly dangerous move: we don't want to delete "/" if both workdir and entry are NULL for some reason
+
+  # For each entry one of the following can happen:
+  ###   Case 1:  Cleanup of an empty folder      ###
+  if  [ -z "$(ls -A "$entry_path")" ]; then
+    # cleaning up after other scripts if we find empty directory we delete it and try another entry
+    echo "$(timestamp): $entry folder is empty therefore being removed, will try another entry"
+    rm -r "$entry_path"
+    continue
+
+  ###   Case 2:   Undeformed structure calculation     ###
+  elif [[ -d "$entry_path/undeformed" ]]; then
+    runcounter=0
+    undeformed_run=true # flag to tell other functions that this is an undeformed run
+    # undeformed exists in entry folder => it is either in progress or not yet done
+    # setting up dirs to work with
+    undeformed_path="${inputdir:?}/${entry:?}/undeformed"
+    path_out="$outdir/$entry/undeformed"
+    # Check if other script is already working with it:
+    busy_flag="$undeformed_path/busy"
+
+    if [[ -e "$busy_flag" ]]; then
+      echo "$(timestamp): $entry undeformed structure is being used by other executor (found a busy file), will try another entry"
+      continue
+    # If not we can start working with it
+    else
+    # 0 add stopfile to claim this job
+      true > "$busy_flag"
+
+    # 1. copy contents of the undeformed to workdir
+      rsync -av $SLURM_SUBMIT_HOST:${undeformed_path:?}/* $workdir
+      echo "$(timestamp): $entry undeformed structure is good to go, files copied to workdir"
+      echo "***"
+    # 2. prepare folder for output
+      mkdir "$outdir/$entry" # create folder for the entry in the outdir
+      mkdir "$path_out" # create undeformed subfolder in outdir/entry
+
+    # 2. First vasp run  + saving info
+      echo "$(timestamp): calling vasp to run $entry undeformed structure first time"
+      vasp_runner
+      runcounter=1
+      echo "$(timestamp): vasp finished"
+      echo "***"
+      processing_results "$path_out"
+      echo "***"
+      rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR$runcounter
+      zip_clean "$workdir"
+      rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/run_1_rundir.$SLURM_JOBID.tar.gz
+      rm "$workdir.tar.gz"
+      echo "***"
+      echo "$(timestamp): First run finished"
+      echo "***"
+
+    # 3. Prepare for next run
+      echo "" >>  $workdir/INCAR          # modify incar
+      echo "ICHARG = 1" >> $workdir/INCAR
+      echo "NELMDL = 10"  >> $workdir/INCAR
+      cp $workdir/CONTCAR $workdir/POSCAR         #  CONTCAR to POSCAR
+      echo "INCAR and POSCAR were modified to continue calculation"
+      echo "***"
+
+    # 4. Second vasp run + saving info
+      echo "$(timestamp): calling vasp to run $entry undeformed structure second time"
+      vasp_runner
+      runcounter=2
+      echo "$(timestamp): vasp finished"
+      echo "***"
+      processing_results "$path_out"
+      echo "***"
+      rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR$runcounter
+      zip_clean "$workdir"
+      rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/run_2_rundir.$SLURM_JOBID.tar.gz
+      rm "$workdir.tar.gz"
+      echo "***"
+      echo "$(timestamp): Second run finished"
+      echo "***"
+
+    # 5. Prepare for next run
+      cp $workdir/CONTCAR $workdir/POSCAR         #  CONTCAR to POSCAR
+      awk '!/EDIFF =/' $workdir/INCAR > $workdir/temp && mv $workdir/temp $workdir/INCAR
+      echo "EDIFF = 0.000001 \n" >> $workdir/INCAR
+      echo "POSCAR was modified to continue calculation"
+      echo "***"
+
+    # 6. Third vasp run + saving info
+      echo "$(timestamp): calling vasp to run $entry undeformed structure third time"
+      vasp_runner
+      runcounter=3
+      echo "$(timestamp): vasp finished"
+      echo "***"
+      processing_results "$path_out"
+      echo "***"
+      rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
+      zip_clean "$workdir"
+      rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/run_3_rundir.$SLURM_JOBID.tar.gz
+      rm "$workdir.tar.gz"
+      echo "***"
+      echo "$(timestamp): Third run finished"
+      echo "***"
+
+    # 7. Cleaning up
+      rm -r "$undeformed_path" # remove entry/undeformed from inputdir
+      rm -r "$workdir"
+      rm "$workdir.tar.gz"
+      echo "$(timestamp): $entry undeformed structure calculated. Exiting."
+      break
+    fi
+  fi
+done # main loop closed
+
+echo "***"
+echo "$(timestamp): Bye"

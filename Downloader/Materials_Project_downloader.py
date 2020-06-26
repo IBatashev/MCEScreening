@@ -1,8 +1,18 @@
+import pandas as pd
+import tqdm
+from pymatgen.io.vasp import Poscar
+from Tools import POSCAR_reader
 from pymatgen import MPRester
 m = MPRester('LXELGKLFgVPOfRTSj')
 
-out_path = 'MP_structures/'
-filename = 'temp_file_cif'
+# https://github.com/materialsproject/mapidoc
+
+# CITING
+# Ong, S. P.; Cholia, S.; Jain, A.; Brafman, M.; Gunter, D.; Ceder, G.;
+# Persson, K. a. The Materials Application Programming Interface (API): A
+# simple, flexible and efficient API for materials data based on
+# REpresentational State Transfer (REST) principles, Comput. Mater. Sci.,
+# 2015, 97, 209–215. doi:10.1016/j.commatsci.2014.10.037.
 
 
 def chose_ids_to_download():
@@ -14,11 +24,12 @@ def chose_ids_to_download():
                "Cs", "Pa", "Np", "U", "Pu", "Th",                           # Radioactive
                "He", "Ne", "Ar", "Kr", "Xe"]                                # Noble gases
 
-    data = m.query(criteria={"elements": {"$in": ["Mn", "Fe", "Co", "Ni", "Cu"],
+    data = m.query(criteria={"elements": {"$in": ["Mn", "Fe", "Co", "Ni", "Cr"],
                                           "$nin": banlist},
+                             "total_magnetization": {"$gt": 0},
+                             "formation_energy_per_atom": {"$lt": 0},
                              "magnetism.total_magnetization_normalized_vol": {"$gte": 0.03861276264262763},  # the number corresponds to internal field of 0.45T
-                             "magnetism.num_unique_magnetic_sites": {"$gte": 2},
-                             "formation_energy_per_atom": {"$lt": 0}
+                             "magnetism.num_unique_magnetic_sites": {"$gte": 2}
                              },
                    properties=["material_id"])
 
@@ -75,17 +86,19 @@ def download(file_with_ids_to_download):
                                 "magnetism.num_unique_magnetic_sites",
                                 "magnetism.total_magnetization_normalized_vol",
                                 "magnetism.ordering",                   # type of magnetic order
+                                "magnetism.magmoms",
                                 "exp.tags",                             # essentially a comment for this MP entry, information on this material derived from experimental databases such as the ICSD
                                 "icsd_ids",                             # (ICSD) ids for structures that have been deemed to be structurally similar to this material based on pymatgen's StructureMatcher algorithm.
                                 "doi",                                  # some seem to point to corresponding MP webpage, which is not bad but less useful than actual paper...
                                 "warnings",                             # warnings associated with the material
                                 "e_above_hull",                         # The calculated energy above the convex hull from the phase diagram. An indication of how stable a material is. A stable material is on the hull and has an e_above_hull of 0. A larger positive number indicates increasing instability.
-                                "cif"]                                  # the structure in the CIF format.
+                                # "cif"]                                # the structure in the CIF format.
+                                "cifs.conventional_standard"]
                     )
     print('Downloaded information on ', len(rdata), 'compounds, now saving...')
 
-    with open('datalist_MP.csv', 'a') as f:  # we create a csv file to write info into
-        f.write("ID,pretty_formula,compound,energy_cell,energy_atom,lattice_system,spacegroup,species,volume_cell,moment_cell,mag_field,mag_sites_MP,mag_sites,mag_type,comment1,icsd_ids,doi,comment2,e_above_hull,magnetization_norm_vol\n")
+    with open('datalist.csv', 'a') as f:  # we create a csv file to write info into
+        f.write("ID,pretty_formula,compound,energy_cell,energy_atom,lattice_system,spacegroup,species,volume_cell,moment_cell,mag_field,mag_sites_MP,mag_sites,mag_type,magmom,comment1,icsd_ids,doi,comment2,e_above_hull,magnetization_norm_vol\n")
 
     for num, d in enumerate(rdata):
         newrow = str(
@@ -103,6 +116,7 @@ def download(file_with_ids_to_download):
             d["magnetism.num_unique_magnetic_sites"]) + ',' + str(
             0) + ',' + str(
             d["magnetism.ordering"]) + ',' + str(
+            d["magnetism.magmoms"]).replace(',', ';') + ',' + str(
             d["exp.tags"]).replace(',', ';') + ',' + str(
             d["icsd_ids"]).replace(',', ';') + ',' + str(
             d["doi"]) + ',' + str(
@@ -110,23 +124,61 @@ def download(file_with_ids_to_download):
             d["e_above_hull"]) + ',' + str(
             d["magnetism.total_magnetization_normalized_vol"]) + '\n'
 
-        with open('datalist_MP.csv', 'a', encoding="utf-8") as f:
+        with open('datalist.csv', 'a', encoding="utf-8") as f:
             f.write(newrow)
 
-        with open(out_path + str(d['material_id']) + str('.cif'), "w+", encoding="utf-8") as f:
-            f.write(d['cif'])
+        with open('datadir/' + str(d['material_id']) + str('.cif'), "w+", encoding="utf-8") as f:
+            # f.write(d['cif'])
+            f.write(d['cifs.conventional_standard'])
     print('Done')
 
 
-# chose_ids_to_download()
-download('ids_to_download_all')
+def lattice_type_fix(datalist, datadir):
+    """MP has a trigonal lattice type which can be both HEX and RHL we want to distinguish them for our deformations
+    This short script does this based on the space group"""
+
+    prec = 0.1
+    angle_prec = 5.0
+
+    df = pd.read_csv(datalist, index_col=0, sep=',')
+    with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
+        pbar.set_description("Processing datalist")
+
+        for item in df.index.tolist():
+            pbar.update(1)                              # Updating progress bar at each step
+            structure_file = datadir + str(item) + '.cif'
+            poscar_content = POSCAR_reader.read(structure_file)
+            poscar_string = ''.join(poscar_content)  # merging poscar content in a single string so pymatgen can read it
+            lat_type = df.loc[item, 'lattice_system']
+
+            if lat_type == 'trigonal':
+                poscar = Poscar.from_string(poscar_string)  # using pymatgen to acquire our structure from poscar content
+                structure = poscar.structure
+                group = ((structure.get_space_group_info(symprec=prec, angle_tolerance=angle_prec))[0])
+                if 'R' in str(group):
+                    df.loc[item, 'lattice_system'] = 'rhombohedral'
+                else:
+                    df.loc[item, 'lattice_system'] = 'hexagonal'
+        df.to_csv(datalist.replace(".csv", '_lattfix' + '.csv'))
 
 
-# https://github.com/materialsproject/mapidoc
+# ------------------------------------------------------------------------------------------------------- #
+#  _____                                           _       _____ _             _     _   _                #
+# /  __ \                                         | |     /  ___| |           | |   | | | |               #
+# | /  \/ ___  _ __ ___  _ __ ___   __ _ _ __   __| |___  \ `--.| |_ __ _ _ __| |_  | |_| | ___ _ __ ___  #
+# | |    / _ \| '_ ` _ \| '_ ` _ \ / _` | '_ \ / _` / __|  `--. \ __/ _` | '__| __| |  _  |/ _ \ '__/ _ \ #
+# | \__/\ (_) | | | | | | | | | | | (_| | | | | (_| \__ \ /\__/ / || (_| | |  | |_  | | | |  __/ | |  __/ #
+#  \____/\___/|_| |_| |_|_| |_| |_|\__,_|_| |_|\__,_|___/ \____/ \__\__,_|_|   \__| \_| |_/\___|_|  \___| #
+#                                                                                                         #
+# ------------------------------------------------------------------------------------------------------- #
 
-# CITING
-# Ong, S. P.; Cholia, S.; Jain, A.; Brafman, M.; Gunter, D.; Ceder, G.;
-# Persson, K. a. The Materials Application Programming Interface (API): A
-# simple, flexible and efficient API for materials data based on
-# REpresentational State Transfer (REST) principles, Comput. Mater. Sci.,
-# 2015, 97, 209–215. doi:10.1016/j.commatsci.2014.10.037.
+wdatadir = 'datadir/'
+wdatalist = 'datalist.csv'
+
+# step 1:
+chose_ids_to_download()
+# step 2:
+# download('ids_to_download_all')
+# step 3:
+# lattice_type_fix(wdatalist, wdatadir)
+

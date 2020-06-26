@@ -1,5 +1,4 @@
 import pandas as pd
-import shutil
 import os
 import numpy as np
 import tqdm
@@ -8,7 +7,7 @@ import matplotlib.pyplot as plt
 from pymatgen.io.vasp import Poscar
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 ### LOCAL IMPORTS ###
-import POSCAR_reader
+from Tools import POSCAR_reader
 
 
 
@@ -40,7 +39,7 @@ def mag_sites_calculator(ID):
     Takes ID as input, looks up structure file in the datadir and returns number of unique sites as integer"""
 
     ### List of Magnetic Atoms
-    magnetic = [ 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu',  # Sc, Y, and everythong else is considered not magnetic
+    magnetic = [ 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni',  # Cu, Sc, Y, and everythong else is considered not magnetic
                  'Nb', 'Mo', 'Ru', 'Rh', 'Pd', # we sieve out Cd at earliear step, so I could have ommitted it from this list but this approach is more "universal"
                  'Ce', 'Pr', 'Nd', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb']
     bad_notation = False                                                    # sometimes aflow files have alphabet instead of element symbols in structure POSCAR I call it bad notation
@@ -83,7 +82,7 @@ def mag_sites_calculator_MP(ID):
     Takes ID as input, looks up structure file in the datadir and returns number of unique sites as integer"""
 
     ### List of Magnetic Atoms
-    magnetic = [ 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu',  # Sc, Y, and everythong else is considered not magnetic
+    magnetic = [ 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', #'Cu',  # Sc, Y, and everythong else is considered not magnetic
                  'Nb', 'Mo', 'Ru', 'Rh', 'Pd', # we sieve out Cd at earliear step, so I could have ommitted it from this list but this approach is more "universal"
                  'Ce', 'Pr', 'Nd', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb']
 
@@ -272,7 +271,7 @@ def magnetoelastic(ID, deformation, plot=False):
         return '', '', ''
 
 
-def screener_before(datalist):
+def screener_before(datalist, database_type):
     # I feel that performance may not be optimal - making two loops does not seem reasonable
     # but I have to test if working with two df simultaneously is faster...
     """First main function that works with screening database. Used to apply criteria that don't require calculations.
@@ -288,23 +287,16 @@ def screener_before(datalist):
         pbar.set_description("Processing datalist")
         for item in df.index.tolist():
             pbar.update(1)                              # Updating progress bar at each step
+
         ### Write number of sites into datalist:
-            df.loc[item, 'mag_sites'] = mag_sites_calculator_MP(item)
+            if database_type== 'aflow':
+                df.loc[item, 'mag_sites'] = mag_sites_calculator(item)
+            elif database_type== 'MP':
+                df.loc[item, 'mag_sites'] = mag_sites_calculator_MP(item)
         ### Write internal magnetic field into datalist:
             df.loc[item, 'mag_field'] = calculate_mag_field(df.loc[item, 'moment_cell'], df.loc[item, 'volume_cell'])
-        ### Check if universal scaling factor is 1.0, othervise results for magnetic field calculaded using aflow data are unreliable
-        # does not seem to mater in the end, pymatgen interpretation of the structure file contains correct numbers
-            # is_scalled, scaling_factor = check_universal_scaling_factor(item)
-            # if is_scalled == True:
-            #     df.loc[item, 'comment1'] = 'scaling factor = ' + str(scaling_factor)
         ### Wrire an updated datalist back to file
         df.to_csv(datalist.replace('.csv', '_updated.csv'))
-
-        # ### Write the shorter sieved database to a separate file and copy relevant POSCAR to new datadir
-        # if os.path.exists('../Database/datadir_sieved/'):  # Prepare new datadir folder
-        #     shutil.rmtree('../Database/datadir_sieved/')  # (cleans old one if it already existed)
-        # os.makedirs('../Database/datadir_sieved/')
-
         ### drops everything that does not fit the criteria, creating new datalist file at each sieve
     sieve(datalist.replace('.csv', '_updated.csv'), 'mag_field', min_mag_field)
     sieve(datalist.replace('.csv', '_updated_sieved.mag.field.csv'), 'mag_sites', min_site_number)
@@ -409,8 +401,12 @@ screener_before(wdatalist)
 # wdatalist = '../Database/TESTS/TestDB_hex/datalist_TestDB_hex.csv'
 # vasp_results_dir = '../Database/TESTS/TestDB_hex/BEXT=-0.01/outdir'
 
-# vasp_results_dir = 'D:/MCES/BEXT_out'
-vasp_results_dir = 'D:/MCES/outdir'
+# vasp_results_dir = 'D:/MCES/Aflow/second stage test 3/outdir'
+# wdatadir = '../Database/aflow/datadir_structure_relaxed/'
+# wdatalist = 'D:/MCES/Aflow/second stage test 3/datalist_test.csv'
+
+# screener_after(wdatalist)
+# vasp_results_dir = 'D:/MCES/outdir'
 
 # screener_after('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
 # sieve('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_out.csv', 'magF_u', 0.45)
@@ -418,4 +414,5 @@ vasp_results_dir = 'D:/MCES/outdir'
 # sieve('D:/MCES/datalist_april_marked_Mel_sieved2.csv', 'magF_u', 0.45)
 
 # screener_after('D:/MCES/BEXT_out/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun1_success_sieved_out.csv')
+
 

@@ -50,6 +50,8 @@ def status_after(datalist, outdir):
                                 total_warning_counter = total_warning_counter + 1
                     if 'fail' in files:                                 # if there is a fail flag in undeformed subfolder all deformations that were supposed to run for this compounds are marked as failures
                         df.loc[item, 'undeformed'] = 'failed'
+                        with open(path + '/' + 'undeformed' + '/fail', 'r') as failfile:
+                            df.loc[item, 'undeformed_fail_reason'] = failfile.readline()
                         fail_counter = fail_counter + 1
                         for sub_calc in sub_calculations_list:
                             if df.loc[item, sub_calc] == 'to_run':
@@ -70,6 +72,8 @@ def status_after(datalist, outdir):
                                     total_warning_counter = total_warning_counter + 1
                         if 'fail' in files:
                             df.loc[item, sub_calc] = 'failed'
+                            with open(path + '/' + sub_calc + '/fail', 'r') as failfile:
+                                df.loc[item, sub_calc+'_fail_reason'] = failfile.readline()
                             fail_counter = fail_counter + 1
                         else:
                             df.loc[item, sub_calc] = 'completed'
@@ -126,12 +130,18 @@ def sieve_for_success(datalist):
 #                                                                                                         #
 # ------------------------------------------------------------------------------------------------------- #
 
-datalist_before = 'D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
-datalist_after = 'D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun.csv'
-outdir = 'D:/MCES/outdir'
-inputdir = 'D:/MCES/inputdir'
 
+# datalist_before = 'D:/MCES/aflow/errors_run1/datalist.csv'
+# datalist_after = 'D:/MCES/aflow/errors_run1/datalist_beforeRun.csv'
+# outdir = 'D:/MCES/aflow/errors_run1/outdir'
+# inputdir = 'D:/MCES/aflow/errors_run1/inputdir'
 
-#status_before(datalist_before,inputdir)
-status_after(datalist_after, outdir)
-sieve_for_success('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun.csv')
+outdir = 'D:/MCES/Aflow/second stage test 2/outdir'
+inputdir = 'D:/MCES/Aflow/second stage test 2/inputdir'
+
+datalist_before = 'D:/MCES/Aflow/second stage test 2/datalist_test.csv'
+datalist_after = 'D:/MCES/Aflow/second stage test 2/datalist_test_beforeRun.csv'
+
+# status_before(datalist_before, inputdir)
+# status_after(datalist_after, outdir)
+sieve_for_success('D:/MCES/Aflow/second stage test 2/datalist_test_beforeRun_afterRun.csv')

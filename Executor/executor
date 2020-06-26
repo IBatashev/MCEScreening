@@ -101,6 +101,7 @@ inputdir="$SLURM_SUBMIT_DIR/inputdir"
 outdir="$SLURM_SUBMIT_DIR/outdir"
 badlist="$SLURM_SUBMIT_DIR/badlist"
 warnlist="$SLURM_SUBMIT_DIR/warnlist"
+rerunlist="$SLURM_SUBMIT_DIR/rerunlist"
 
 ### defining functions ###
 
@@ -330,26 +331,28 @@ do
     # 1. copy contents of the undeformed to workdir
       rsync -av $SLURM_SUBMIT_HOST:${undeformed_path:?}/* $workdir
       echo "$entry undeformed structure is good to go, files copied to workdir"
+      echo "***"
 
     # 2. run vasp from workdir
       echo "calling vasp to run $entry undeformed structure "
       vasp_runner
       echo "vasp finished"
+      echo "***"
+
 
     # 3. check output to see the results and act accordingly:
       mkdir "$outdir/$entry" # create folder for the entry in the outdir
       mkdir "$path_out" # create undeformed subfolder in outdir/entry
 
       convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
-
+      echo "***"
       processing_results "$path_out" # analyse results again
-
+      echo "***"
       if [ $failure = true ] ; then
         echo "First run and rerun failed, results placed in outdir, no need for deformations - removing $entry from workdir"
         rm -r "$entry_path" # remove whole directory for this entry - no need for deformations if undeformed structure failed
       else
         echo "Success, results placed in outdir, undeformed folder removed"
-        rm "$workdir/fail"
         rm -r "$undeformed_path" # remove entry/undeformed from inputdir
       fi
 
@@ -357,7 +360,7 @@ do
       rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
       zip_clean "$workdir"
       rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
-
+      echo "***"
     # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
       rm -r "$workdir"
       rm "$workdir.tar.gz"
@@ -369,6 +372,7 @@ do
   else
     undeformed_run=false # flag to tell other functions that this is a deformation run
     # undeformed is not in directory => looping through all deformation folders to find which one we can run
+    echo "***"
     echo "$entry undeformed structure seems to be already completed, will try the deformations"
     for deformation in $(find "$entry_path" -maxdepth 1 -mindepth 1 -type d ! -name '.*' -printf '%f\n')
     do
@@ -389,19 +393,22 @@ do
       # 1. copy contents of the deformation folder to workdir
         rsync -av $SLURM_SUBMIT_HOST:${def_path:?}/* $workdir
         echo "$entry $deformation is good to go, files moved to workdir"
+        echo "***"
 
       # 2. run vasp from workdir
         echo "calling vasp to run $entry $deformation"
         vasp_runner
         echo "vasp finished"
+        echo "***"
+
 
       # 3. grep on output to see the results and act accordingly
         mkdir "$path_out" # prepare subfolder for deformation, we expect there is already outdir/entry/ which is created during undeformed calculation
 
         convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
-
+        echo "***"
         processing_results "$path_out" # analyse results again
-
+        echo "***"
         if [ $failure = true ] ; then
           echo "First run and rerun failed, results placed in outdir"
         else
@@ -413,7 +420,7 @@ do
         rsync -av $workdir/OUTCAR $SLURM_SUBMIT_HOST:$path_out/OUTCAR
         zip_clean "$workdir"
         rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
-
+        echo "***"
       # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
         rm -r "$workdir"
         rm "$workdir.tar.gz"
@@ -430,5 +437,5 @@ do
     fi
   fi # all cases checked
 done # main loop closed
-
+echo "***"
 echo "Bye"

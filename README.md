@@ -30,6 +30,7 @@ Database ChangeLog
 |a6|09.02.20| 31 |Small test subset made from 5 using make_test_db.py with random seed = 1. After random generation manually added Fe2P(ID=6295), FeRh(ID=6373) and LaFeSi(ID=5565)|
 |a7|31.03.20| 20 |Small test subset made from 5 using make_test_db.py with random seed = 1. All compounds are hexagonal (Fe2P(ID=6295) was already in from random|
 |MP1|13.05.20|12160| First snapshot from Materials Project same general settings as with aflow but, more info and structure files are in .cif format|
+|MP2|17.06.20|12759| Second snapshot from Materials Project. Cu was replaced by Cr in the list of necessary elements and magnetic elements. Cif with conventional structures are used instead of primitive (problems with deformations occur otherwise)|
 
 Run Results
 ---
@@ -48,14 +49,14 @@ TODO
 - clean all project files from test things, make them easier to use - less variables to change before runs
 - add instructions on how to use MCES add list of steps and in what order to do them and also write which files are created at each step
 
-- new flowchart for executor
+- mag_sites_calculator can it be the same function for both databases?
+- unify creator?
 - Gd5Ge2Si2 MCL reference
 - add rounding to numbers before they go into .csv
 - wtf is wrong with entries 2870 and 7513 why are the structures not recognized by pymatgen?
 - Add function to screener_after to parse messages from warnlist and badlist and add them to datalist somehow - just write number of warnings? and failures?
 - add check to screener_after to  warn about big change in mag field after calculation compared to before
 - make a script for screen after that gathers result from the run - failures and reasons etc to make a csv file with successfully completed compounds that we can further analyse
-- update readme
 - make option for creator to include bext
 - write folder joiner tool
 - rewrite function description to display parameter tips
