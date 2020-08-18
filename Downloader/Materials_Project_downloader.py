@@ -127,10 +127,10 @@ def download(file_with_ids_to_download):
         with open('datalist.csv', 'a', encoding="utf-8") as f:
             f.write(newrow)
 
-        with open('datadir/' + str(d['material_id']) + str('.cif'), "w+", encoding="utf-8") as f:
-            # f.write(d['cif'])
-            f.write(d['cifs.conventional_standard'])
-    print('Done')
+    #     with open('datadir/' + str(d['material_id']) + str('.cif'), "w+", encoding="utf-8") as f:
+    #         # f.write(d['cif'])
+    #         f.write(d['cifs.conventional_standard'])
+    # print('Done')
 
 
 def lattice_type_fix(datalist, datadir):
@@ -162,6 +162,40 @@ def lattice_type_fix(datalist, datadir):
         df.to_csv(datalist.replace(".csv", '_lattfix' + '.csv'))
 
 
+def id_download(id):
+    rdata = m.query(criteria={"material_id": id},
+                    properties=["material_id",                          # essentially a MP Id BUT each compound in MP has multiple calculations each with such number...
+                                "task_id",
+                                "pretty_formula",                       # formula where the element amounts are normalized. E.g., "Li2O"
+                                "full_formula",                         # full explicit formula for the unit cell, e.g., "Lu2Al4"
+                                "final_energy_per_atom",                #
+                                "final_energy",                         # Calculated vasp energy for structure
+                                "spacegroup.crystal_system",            #
+                                "spacegroup.number",                    #
+                                "elements",                             # separate elements
+                                "volume",                               # The volume of the unit cell of the material used in the calculation. Need tocheck if it corresponds to cif volume, if not, cif is more reliable
+                                "magnetism",        #
+                                "magnetism.num_unique_magnetic_sites",
+                                "magnetism.total_magnetization_normalized_vol",
+                                "magnetism.ordering",                   # type of magnetic order
+                                "magnetism.magmoms",
+                                "exp.tags",                             # essentially a comment for this MP entry, information on this material derived from experimental databases such as the ICSD
+                                "icsd_ids",                             # (ICSD) ids for structures that have been deemed to be structurally similar to this material based on pymatgen's StructureMatcher algorithm.
+                                "doi",                                  # some seem to point to corresponding MP webpage, which is not bad but less useful than actual paper...
+                                "warnings",                             # warnings associated with the material
+                                "e_above_hull",                         # The calculated energy above the convex hull from the phase diagram. An indication of how stable a material is. A stable material is on the hull and has an e_above_hull of 0. A larger positive number indicates increasing instability.
+                                # "cif"]                                # the structure in the CIF format.
+                                "cifs.conventional_standard",
+                                "input"]
+                    )
+    for num, d in enumerate(rdata):
+        print(d["magnetism"])
+        print(d["material_id"])
+        # print(d["task_id"])
+
+        print(d["volume"])
+
+
 # ------------------------------------------------------------------------------------------------------- #
 #  _____                                           _       _____ _             _     _   _                #
 # /  __ \                                         | |     /  ___| |           | |   | | | |               #
@@ -176,9 +210,11 @@ wdatadir = 'datadir/'
 wdatalist = 'datalist.csv'
 
 # step 1:
-chose_ids_to_download()
+# chose_ids_to_download()
 # step 2:
 # download('ids_to_download_all')
 # step 3:
 # lattice_type_fix(wdatalist, wdatadir)
 
+# id_download('mp-18442')
+id_download('mp-778')

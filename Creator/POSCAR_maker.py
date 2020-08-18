@@ -28,7 +28,7 @@ def writer(out_path, poscar_content, deformation):
 
 def writer_MP(out_path, poscar_content, lattice):
     """Creates POSCAR in the selected path using initial
-    POSCAR content from aflow structure file and chosen deformation"""
+    POSCAR content from MP structure file and chosen deformation"""
 
     poscar_string = ''.join(poscar_content)       # merging poscar content in a single string so pymatgen can read it
     poscar = Poscar.from_string(poscar_string)    # using pymatgen to acquire our structure from poscar content

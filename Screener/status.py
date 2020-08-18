@@ -40,43 +40,58 @@ def status_after(datalist, outdir):
             warn_counter = 0
             path = outdir + '/' + str(item)
             if os.path.exists(path):                                    # first we look if this entry was calculated, if folder in outdir does not exist it means it was not run at all and status will remain 'to_run'
+
                 if df.loc[item, 'undeformed'] == 'to_run':              # Next, we check if undeformed was calculated (this is purely for the case when we use this script after we calculated some specific deformation in a new run and want to merge results)
-                    files = os.listdir(path + '/' + 'undeformed')
-                    run_counter = run_counter + 1
-                    if 'warning' in files:
-                        with open(path + '/' + 'undeformed' + '/warning', 'r') as f:
-                            for line in f:
-                                warn_counter = warn_counter + 1
-                                total_warning_counter = total_warning_counter + 1
-                    if 'fail' in files:                                 # if there is a fail flag in undeformed subfolder all deformations that were supposed to run for this compounds are marked as failures
+                    if os.path.exists(path + '/' + 'undeformed'):
+                        files = os.listdir(path + '/' + 'undeformed')
+                        run_counter = run_counter + 1
+                        if 'warning' in files:
+                            with open(path + '/' + 'undeformed' + '/warning', 'r') as f:
+                                for line in f:
+                                    warn_counter = warn_counter + 1
+                                    total_warning_counter = total_warning_counter + 1
+                        if 'fail' in files:                                 # if there is a fail flag in undeformed subfolder all deformations that were supposed to run for this compounds are marked as failures
+                            df.loc[item, 'undeformed'] = 'failed'
+                            with open(path + '/' + 'undeformed' + '/fail', 'r') as failfile:
+                                df.loc[item, 'undeformed_fail_reason'] = failfile.readline().strip('\n')
+                            fail_counter = fail_counter + 1
+                            for sub_calc in sub_calculations_list:
+                                if df.loc[item, sub_calc] == 'to_run':
+                                    df.loc[item, sub_calc] = 'failed'
+                                    fail_counter = fail_counter + 1
+                            continue                                        # we no longer need to separately check subruns anymore so we skip to next entry
+                        else:
+                            df.loc[item, 'undeformed'] = 'completed'
+                    else:
                         df.loc[item, 'undeformed'] = 'failed'
-                        with open(path + '/' + 'undeformed' + '/fail', 'r') as failfile:
-                            df.loc[item, 'undeformed_fail_reason'] = failfile.readline()
+                        df.loc[item, 'undeformed' + '_fail_reason'] = 'not calculated'
                         fail_counter = fail_counter + 1
                         for sub_calc in sub_calculations_list:
                             if df.loc[item, sub_calc] == 'to_run':
                                 df.loc[item, sub_calc] = 'failed'
                                 fail_counter = fail_counter + 1
-                        continue                                        # we no longer need to separately check subruns anymore so we skip to next entry
-                    else:
-                        df.loc[item, 'undeformed'] = 'completed'
 
                 for sub_calc in sub_calculations_list:
                     if df.loc[item, sub_calc] == 'to_run':
-                        files = os.listdir(path + '/' + sub_calc)
-                        run_counter = run_counter + 1
-                        if 'warning' in files:
-                            with open(path + '/' + sub_calc + '/warning', 'r') as f:
-                                for line in f:
-                                    warn_counter = warn_counter + 1
-                                    total_warning_counter = total_warning_counter + 1
-                        if 'fail' in files:
-                            df.loc[item, sub_calc] = 'failed'
-                            with open(path + '/' + sub_calc + '/fail', 'r') as failfile:
-                                df.loc[item, sub_calc+'_fail_reason'] = failfile.readline()
-                            fail_counter = fail_counter + 1
+                        if os.path.exists(path + '/' + sub_calc):
+                            files = os.listdir(path + '/' + sub_calc)
+                            run_counter = run_counter + 1
+                            if 'warning' in files:
+                                with open(path + '/' + sub_calc + '/warning', 'r') as f:
+                                    for line in f:
+                                        warn_counter = warn_counter + 1
+                                        total_warning_counter = total_warning_counter + 1
+                            if 'fail' in files:
+                                df.loc[item, sub_calc] = 'failed'
+                                with open(path + '/' + sub_calc + '/fail', 'r') as failfile:
+                                    df.loc[item, sub_calc+'_fail_reason'] = failfile.readline().strip('\n')
+                                fail_counter = fail_counter + 1
+                            else:
+                                df.loc[item, sub_calc] = 'completed'
                         else:
-                            df.loc[item, sub_calc] = 'completed'
+                            df.loc[item, sub_calc] = 'failed'
+                            df.loc[item, sub_calc + '_fail_reason'] = 'not calculated'
+                            fail_counter = fail_counter + 1
                 df.loc[item, 'warnings'] = warn_counter
 
     df.to_csv((datalist.replace('.csv', '_afterRun.csv')))
@@ -88,6 +103,10 @@ def status_after(datalist, outdir):
 def make_inputdir_for_rerun(datalist, inputdir_initial, inputdir_rerun):
     """Takes datalist, looks what runs failed and takes corresponding folders from initial inputdir
     to create an inputdir to use for rerun"""
+
+
+def separate_failed_entries():
+    """Moves all entries in failed.csv to a separate folder from outdir (and sorts them by fail type?)"""
 
 
 def sieve_for_success(datalist):
@@ -136,12 +155,19 @@ def sieve_for_success(datalist):
 # outdir = 'D:/MCES/aflow/errors_run1/outdir'
 # inputdir = 'D:/MCES/aflow/errors_run1/inputdir'
 
-outdir = 'D:/MCES/Aflow/second stage test 2/outdir'
-inputdir = 'D:/MCES/Aflow/second stage test 2/inputdir'
+# outdir = 'D:/MCES/MP/batch1/outdir'
 
-datalist_before = 'D:/MCES/Aflow/second stage test 2/datalist_test.csv'
-datalist_after = 'D:/MCES/Aflow/second stage test 2/datalist_test_beforeRun.csv'
+inputdir = 'D:/MCES/MP/inputdir'
+# datalist_before = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
+
+datalist_before = 'X:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
+outdir = 'X:/MCES/MP/outdir'
+
+# datalist_after = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun.csv'
+
+datalist_after = 'X:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun.csv'
 
 # status_before(datalist_before, inputdir)
-# status_after(datalist_after, outdir)
-sieve_for_success('D:/MCES/Aflow/second stage test 2/datalist_test_beforeRun_afterRun.csv')
+status_after(datalist_after, outdir)
+
+# sieve_for_success('X:/MCES/MP/meeting/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun.csv')

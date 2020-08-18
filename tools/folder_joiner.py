@@ -1,1 +1,0 @@
-# to combine several runs of the same database in one filestructure e.g. add BEXT run results to previously done magnetoelastic run

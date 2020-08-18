@@ -222,7 +222,7 @@ def creator(datalist, datadir, def_factor=0.05, field=False):
             pbar.update(1)
             ID = str(item)
             global path
-            path = output_path + 'inputdir/' + str(ID) + '/'  # Prepare folder single ID (all subfolders will go there)
+            path = output_path + '/' + str(ID) + '/'  # Prepare folder single ID (all subfolders will go there)
             if os.path.exists(path):  # !WARNING! Overwrites existing path!
                 shutil.rmtree(path)  #
             os.makedirs(path)  #
@@ -244,8 +244,16 @@ def creator(datalist, datadir, def_factor=0.05, field=False):
             gamma_ang = structure.lattice.gamma
 
             lat_type = (df.loc[item, 'lattice_system'])
+
+            # getting list of elemets from structure
             global elem_list
-            elem_list = (df.loc[item, 'species']).replace(';', ',').replace("'", "").strip('][').split(', ')
+            used = set()
+            mylist = structure.species
+            unique = [x for x in mylist if x not in used and (used.add(x) or True)]
+
+            elem_list = str(unique).replace('Element ', '').strip('][').split(', ')
+
+
             # global magmoms
             # magmoms = (df.loc[item, 'magmom']).replace(';', '').strip('][')
 
@@ -285,12 +293,12 @@ warnings.filterwarnings("ignore")  # slightly dirty, but simple way to disable p
 ### Setting which database we work with ###
 
 wdatadir = '../Database/MP/datadir/'
-wdatalist = '../Database/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
+wdatalist = 'X:/MCES/MP/fail_cn07_introduction_error.csv'
 # wdatalist = '../Database/MP/dt.csv'
 # wdatalist = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
 
 
-output_path = 'D:/MCES/MP/'
+output_path = 'X:/MCES/MP/inputdir_fail_cn07_introduction_error'
 
 
 # wdatadir = 'D:/MCES/MP/test4/MP_structures/'

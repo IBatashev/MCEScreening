@@ -31,6 +31,7 @@ Database ChangeLog
 |a7|31.03.20| 20 |Small test subset made from 5 using make_test_db.py with random seed = 1. All compounds are hexagonal (Fe2P(ID=6295) was already in from random|
 |MP1|13.05.20|12160| First snapshot from Materials Project same general settings as with aflow but, more info and structure files are in .cif format|
 |MP2|17.06.20|12759| Second snapshot from Materials Project. Cu was replaced by Cr in the list of necessary elements and magnetic elements. Cif with conventional structures are used instead of primitive (problems with deformations occur otherwise)|
+|MP3|29.07.20|6751| Third snapshot from Materials Project. No changes in code used to acquire the data but the result has a huge difference. Probably there was an update of MP. Re-download of previous ID list from MP2 leads to many changes in various values (sometimes insignificant, but also huge)|
 
 Run Results
 ---
@@ -61,6 +62,7 @@ TODO
 - write folder joiner tool
 - rewrite function description to display parameter tips
 - simplify executor
+- datalist_before is suspiciously slow - maybe check why
 
 - Collector for results:
     - symmetries (bravais + group number) + lattice parameters from OUTCAR - ALAT and C/A, B/A

@@ -3,6 +3,7 @@ import os
 import numpy as np
 import tqdm
 import tarfile
+import math
 import matplotlib.pyplot as plt
 from pymatgen.io.vasp import Poscar
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
@@ -354,9 +355,27 @@ def screener_after(datalist):
             df.loc[item, 'energy'] = energy(item, 'undeformed')
 
             # Calculate magnetoelastic parameter
-            df.loc[item, 'Mel_a'] = magnetoelastic(item, 'a')[0]
-            df.loc[item, 'Mel_b'] = magnetoelastic(item, 'b')[0]
-            df.loc[item, 'Mel_c'] = magnetoelastic(item, 'c')[0]
+
+            Mel_a = magnetoelastic(item, 'a')[0]
+            Mel_b = magnetoelastic(item, 'b')[0]
+            Mel_c = magnetoelastic(item, 'c')[0]
+
+            df.loc[item, 'Mel_a'] = Mel_a
+            df.loc[item, 'Mel_b'] = Mel_b
+            df.loc[item, 'Mel_c'] = Mel_c
+
+            # df.loc[item, 'Mel_a'] = magnetoelastic(item, 'a')[0]
+            # df.loc[item, 'Mel_b'] = magnetoelastic(item, 'b')[0]
+            # df.loc[item, 'Mel_c'] = magnetoelastic(item, 'c')[0]
+
+            if Mel_a == '':
+                Mel_a = 0
+            if Mel_b == '':
+                Mel_b = 0
+            if Mel_c == '':
+                Mel_c = 0
+
+            df.loc[item, 'Mel_full'] = math.sqrt((Mel_a**2) + (Mel_b**2) + (Mel_c**2))
 
             # placeholder for future implementation of site difference check
             mag_sites_difference(item)
@@ -365,15 +384,37 @@ def screener_after(datalist):
     # sieve(datalist.replace('.csv', '_out.csv'), 'magF_u', min_mag_field)
 
 
-def sieve_temp(datalist):
+def sieve_temp01(datalist):
     """Removes entries from datalist according to selected sieving criteria"""
 
     df = pd.read_csv(datalist, index_col=0, sep=',')
     for item in df.index.tolist():
         if df.loc[item, 'Mel_check'] == 'FALSE':
             df = df.drop([item], axis=0)
-    df.to_csv(datalist.replace(".csv", '_Mel_sieved.csv'))
+    df.to_csv(datalist.replace(".csv", 'cn07.csv'))
 
+
+def sieve_temp02(datalist):
+    """Removes entries from datalist according to selected sieving criteria"""
+
+    df = pd.read_csv(datalist, index_col=0, sep=',')
+    df2 = pd.DataFrame(columns=df.columns)
+
+    typelist = ['a_inc_fail_reason',
+                'undeformed_fail_reason',
+                'c_dec_fail_reason',
+                'b_dec_fail_reason',
+                'a_dec_fail_reason',
+                'c_inc_fail_reason',
+                'b_inc_fail_reason']
+
+    for item in df.index.tolist():
+        for element in typelist:
+            if df.loc[item, element] == 'run failed, set accuracy not reached: dE is 0.00000000, deps is 0.00000000\n':
+                rows = df.loc[item]
+                df2 = df2.append(rows)
+    df2 = df2.drop_duplicates()
+    df2.to_csv(datalist.replace(".csv", 'cn07.csv'))
 
 # ------------------------------------------------------------------------------------------------------- #
 #  _____                                           _       _____ _             _     _   _                #
@@ -389,11 +430,20 @@ def sieve_temp(datalist):
 # wdatadir_structure = '../Database/aflow/datadir_structure_relaxed/'
 # wdatalist = '../Database/aflow/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
 
-
+# vasp_results_dir = 'D:/MCES/MP/batch1/outdir'
 wdatadir_structure = '../Database/MP/datadir/'
-wdatalist = '../Database/MP/datalist.csv'
+wdatalist = '../Database/MP/datalist_lattfix.csv'
 
-screener_before(wdatalist)
+datalist = 'X:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun.csv'
+outdir = 'X:/MCES/MP/meeting/outdir'
+vasp_results_dir = outdir
+
+# screener_before(wdatalist, 'MP')
+
+sieve_temp02(datalist)
+
+
+# screener_after('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
 
 # wdatalist = '../Database/TESTS/TestDB/datalist_TestDB.csv'
 # vasp_results_dir = '../Database/TESTS/TestDB/second_run/VASP6/BEXT=-0.01/outdir'
@@ -405,8 +455,7 @@ screener_before(wdatalist)
 # wdatadir = '../Database/aflow/datadir_structure_relaxed/'
 # wdatalist = 'D:/MCES/Aflow/second stage test 3/datalist_test.csv'
 
-# screener_after(wdatalist)
-# vasp_results_dir = 'D:/MCES/outdir'
+# screener_after(datalist)
 
 # screener_after('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
 # sieve('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_out.csv', 'magF_u', 0.45)
@@ -416,3 +465,4 @@ screener_before(wdatalist)
 # screener_after('D:/MCES/BEXT_out/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun1_success_sieved_out.csv')
 
 
+# print(calculate_mag_field(14.778,  370.48 ))

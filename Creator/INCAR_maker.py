@@ -38,6 +38,7 @@ def writer(out_path, poscar_info, at_type_list, calculation_type, moments):
         "LASPH = .TRUE.\n"
         "GGA_COMPAT = .FALSE.\n"
         "LREAL = A\n"
+        #"SYMPREC = 0.0001 \n"
     )
     incar.write(
         "ENCUT = " + str(encut) + "\n"

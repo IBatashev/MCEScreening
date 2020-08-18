@@ -2,7 +2,8 @@ import numpy as np
 import os
 import pandas as pd
 from pymatgen.io.vasp import Poscar
-import POSCAR_reader
+from Tools import POSCAR_reader
+
 
 def moment_parser(item):
     """Reads moments from MAGMOM tag from datalist"""
@@ -63,10 +64,17 @@ def averager(dir):
 
 
 wdatadir = '../Database/MP/datadir/'
-wdatalist = '../Database/MP/datalist_MP.csv'
+wdatalist = '../Database/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
 directory = './moments_by_elements/'
-# df = pd.read_csv(wdatalist, index_col=0, sep=',')
-# for item in df.index.tolist():
+
+df = pd.read_csv(wdatalist, index_col=0, sep=',')
+
+for item in df.index.tolist():
+    mom_arr = moment_parser(item)
+    total = mom_arr.sum()
+    df.loc[item, 'sum_of_moments'] = total
+df.to_csv(wdatalist.replace(".csv", '_mom_summed' + '.csv'))
+
 #     try:
 #         write(item)
 #     except:
@@ -74,4 +82,5 @@ directory = './moments_by_elements/'
 #             f.write(str(item)+'\n')
 #
 
-averager(directory)
+# averager(directory)
+
