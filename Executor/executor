@@ -187,13 +187,21 @@ convergence_test_EDIFF(){
   }
 
 
-convergence_test_RMM_step(){
+convergence_test_step(){
   # Function to test if number of RMM steps is suspiciously large, takes path to calculation folder as argument
-  RMM_step=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $2}')
-  if (( $(echo "$RMM_step < 70" |bc -l) )) ; then
-    converged_RMM_step=true
+
+  Algo=$(grep "ALGO" "$1/INCAR"  | tail -1 | awk '{print $3}')
+
+  if [ "$Algo" = Normal ] ; then
+    step=$(grep "DAV" "$1/OSZICAR"  | tail -1 | awk '{print $2}')
+  elif [ "$Algo" = Fast ] ; then
+    step=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $2}')
+  fi
+
+  if (( $(echo "$step < 70" |bc -l) )) ; then
+    converged_step=true
   else
-    converged_RMM_step=false
+    converged_step=false
   fi
   echo "RMM step convergence checked"
 }
@@ -222,7 +230,7 @@ processing_results(){
   # Function to analyse how successful was the calculation, takes outputdir/entry/subfolder as argument
   k_sigma_test "$workdir"
   convergence_test_EDIFF "$workdir"
-  convergence_test_RMM_step "$workdir"
+  convergence_test_step "$workdir"
   mag_field_test "$workdir"
   symmetry_test "$workdir"
 
@@ -248,11 +256,11 @@ processing_results(){
     echo "$entry $1 | set accuracy not reached: dE is $dE, deps is $deps" >> $badlist
     echo "run failed, set accuracy not reached: dE is $dE, deps is $deps" > "$1/fail"
     failure=true
-  # Bad result 4: Too many RMM steps:
-  elif [ "$converged_RMM_step" = false ] ; then
-    echo "run failed, too many RMM steps: RMM step is $RMM_step"
-    echo "$entry $1 | RMM step is $RMM_step" >> $badlist
-    echo "run failed, too many RMM steps: RMM step is $RMM_step" > "$1/fail"
+  # Bad result 4: Too many steps:
+  elif [ "$converged_step" = false ] ; then
+    echo "run failed, too many steps: step is $step"
+    echo "$entry $1 | step is $step" >> $badlist
+    echo "run failed, too many steps: step is $step" > "$1/fail"
     failure=true
 
   # Good result:
@@ -284,7 +292,7 @@ convergence_fail_check(){
   # Runs vasp again (only once, obviously) if first check fails
   # This is a smaller version of processing_results() that does not generate any output
   convergence_test_EDIFF "$workdir"
-  convergence_test_RMM_step "$workdir"
+  convergence_test_step "$workdir"
 
   # Convergence problem 1: Ediff accuracy not reached
   if [ "$converged_EDIFF" = false ] ; then
@@ -293,10 +301,10 @@ convergence_fail_check(){
     echo "$entry $1 | Rerun performed after set accuracy not reached: dE was $dE, deps was $deps"> "$1/rerun_attemped"
     convergence_failure=true
   # Convergence problem 2: Too many RMM steps:
-  elif [ "$converged_RMM_step" = false ] ; then
-    echo "FAILURE: too many RMM steps: RMM step is $RMM_step, performing a rerun"
-    echo "$entry $1 | Rerun performed after too many RMM steps: RMM step was $RMM_step" >> $rerunlist
-    echo "$entry $1 | Rerun performed after too many RMM steps: RMM step was $RMM_step"> "$1/rerun_attemped"
+  elif [ "$converged_step" = false ] ; then
+    echo "FAILURE: too many steps: step is $step, performing a rerun"
+    echo "$entry $1 | Rerun performed after too many steps: step was $step" >> $rerunlist
+    echo "$entry $1 | Rerun performed after too many steps: step was $step"> "$1/rerun_attemped"
     convergence_failure=true
   # Good result:
   else
