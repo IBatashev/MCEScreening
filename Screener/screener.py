@@ -388,10 +388,16 @@ def sieve_temp01(datalist):
     """Removes entries from datalist according to selected sieving criteria"""
 
     df = pd.read_csv(datalist, index_col=0, sep=',')
+    df2 = pd.DataFrame(columns=df.columns)
+
     for item in df.index.tolist():
-        if df.loc[item, 'Mel_check'] == 'FALSE':
+        if 'O' in str(df.loc[item, 'species']):
+            rows = df.loc[item]
+            df2 = df2.append(rows)
             df = df.drop([item], axis=0)
-    df.to_csv(datalist.replace(".csv", 'cn07.csv'))
+
+    df2.to_csv(datalist.replace(".csv", '_O.csv'))
+    df.to_csv(datalist.replace(".csv", "_no_O.csv"))
 
 
 def sieve_temp02(datalist):
@@ -408,13 +414,17 @@ def sieve_temp02(datalist):
                 'c_inc_fail_reason',
                 'b_inc_fail_reason']
 
+    line = 'run failed, set accuracy not reached: dE is'
     for item in df.index.tolist():
         for element in typelist:
-            if df.loc[item, element] == 'run failed, set accuracy not reached: dE is 0.00000000, deps is 0.00000000\n':
+            if line in str(df.loc[item, element]):
                 rows = df.loc[item]
                 df2 = df2.append(rows)
+                df = df.drop([item], axis=0)
+                break
     df2 = df2.drop_duplicates()
-    df2.to_csv(datalist.replace(".csv", 'cn07.csv'))
+    df2.to_csv(datalist.replace(".csv", '_accuracy.csv'))
+    df.to_csv(datalist.replace(".csv", "except_accuracy.csv"))
 
 # ------------------------------------------------------------------------------------------------------- #
 #  _____                                           _       _____ _             _     _   _                #
@@ -431,38 +441,25 @@ def sieve_temp02(datalist):
 # wdatalist = '../Database/aflow/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
 
 # vasp_results_dir = 'D:/MCES/MP/batch1/outdir'
-wdatadir_structure = '../Database/MP/datadir/'
-wdatalist = '../Database/MP/datalist_lattfix.csv'
 
-datalist = 'X:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun.csv'
-outdir = 'X:/MCES/MP/meeting/outdir'
+wdatadir_structure = '../Database/MP/datadir/'
+wdatalist = '../Database/MP/step2_failed_sieved.csv'
+
+datalist = 'X:/MCES/Aflow/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_out.csv'
+outdir = 'X:/MCES/Aflow/outdir'
+
 vasp_results_dir = outdir
 
 # screener_before(wdatalist, 'MP')
 
-sieve_temp02(datalist)
+sieve_temp02(wdatalist)
 
-
-# screener_after('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
-
-# wdatalist = '../Database/TESTS/TestDB/datalist_TestDB.csv'
-# vasp_results_dir = '../Database/TESTS/TestDB/second_run/VASP6/BEXT=-0.01/outdir'
-
-# wdatalist = '../Database/TESTS/TestDB_hex/datalist_TestDB_hex.csv'
-# vasp_results_dir = '../Database/TESTS/TestDB_hex/BEXT=-0.01/outdir'
-
-# vasp_results_dir = 'D:/MCES/Aflow/second stage test 3/outdir'
-# wdatadir = '../Database/aflow/datadir_structure_relaxed/'
-# wdatalist = 'D:/MCES/Aflow/second stage test 3/datalist_test.csv'
+# print(calculate_mag_field(16.1092, 107.51))
 
 # screener_after(datalist)
+
 
 # screener_after('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
 # sieve('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_out.csv', 'magF_u', 0.45)
 
-# sieve('D:/MCES/datalist_april_marked_Mel_sieved2.csv', 'magF_u', 0.45)
 
-# screener_after('D:/MCES/BEXT_out/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun1_success_sieved_out.csv')
-
-
-# print(calculate_mag_field(14.778,  370.48 ))

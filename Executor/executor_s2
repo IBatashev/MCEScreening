@@ -79,6 +79,11 @@ chmod g-w /scratch/ibatashev/rundir.$SLURM_JOBID
 # |_|  |_|  \_____| |______| |_____/
 # ----------------------------------------------------------------------------------------
 
+# This script is for performing optimization on the structures. After all were sucessfully finished we do the relaxarion
+
+# WARNING SCRIPT IS CURRENTLY SECVERELY OUTDATED!!!!!
+
+
 # File structure that must exist for correct exucution:
 
 # -|MCES (directory where everything related to MCES happens - any name works)

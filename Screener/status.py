@@ -168,6 +168,8 @@ outdir = 'X:/MCES/MP/outdir'
 datalist_after = 'X:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun.csv'
 
 # status_before(datalist_before, inputdir)
-status_after(datalist_after, outdir)
+# status_after(datalist_after, outdir)
+
+sieve_for_success('X:/MCES/MP/step2.csv')
 
 # sieve_for_success('X:/MCES/MP/meeting/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun.csv')

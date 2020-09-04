@@ -15,6 +15,15 @@ def outdir_remove(datalist, outdir, trash=None):
         else:
             shutil.move(outdir + '/' + str(item), trash + '/' + str(item))
 
+
+def outdir_copy(datalist, source, destination):
+    """"Copies output folders with ids matching ids in the datalist to a separate directory selected by user"""
+
+    df = pd.read_csv(datalist, index_col=0, sep=',')
+    for item in df.index.tolist():
+        shutil.copytree(source + '/' + str(item), destination + '/' + str(item))
+
+
 # ------------------------------------------------------------------------------------------------------- #
 #  _____                                           _       _____ _             _     _   _                #
 # /  __ \                                         | |     /  ___| |           | |   | | | |               #
@@ -26,8 +35,11 @@ def outdir_remove(datalist, outdir, trash=None):
 # ------------------------------------------------------------------------------------------------------- #
 
 
+
+wdatalist = 'X:/MCES/MP/fail_symmetry_recognition_problems.csv'
+
 trashdir = 'X:/MCES/MP/trash'
-wdatalist = 'X:/MCES/MP/fail_cn07_introduction_error.csv'
 outdir = 'X:/MCES/MP/outdir'
+outdir2 = 'X:/MCES/MP/outdir_unknown'
 
 outdir_remove(wdatalist, outdir, trashdir)

@@ -83,12 +83,13 @@ chmod g-w /scratch/ibatashev/rundir.$SLURM_JOBID
 
 # -|MCES (directory where everything related to MCES happens - any name works)
 # --*executor (this script)
+# --|donedir (empty folder to put results for compledtely processed entries, from here one can safely retrieve results, even during screening process)
 # --|inputdir
 #  --|IDNUMBER (a directory for each compound)
 #   ---|undeformed (optional)
 #   ---|deformation1 (optional)
 #   ---|... (as many subfolders as there are deformations)
-# --|outdir (empty folder to put run results into)
+# --|outdir (empty folder to put run results into while some of the subjobs are not yet finished)
 # ---|fail (empty folder inside outdir to put failed runs into)
 # --|SLURM (empty folder to put slurm output files into)
 
@@ -102,7 +103,7 @@ outdir="$SLURM_SUBMIT_DIR/outdir"
 badlist="$SLURM_SUBMIT_DIR/badlist"
 warnlist="$SLURM_SUBMIT_DIR/warnlist"
 rerunlist="$SLURM_SUBMIT_DIR/rerunlist"
-activedir="$SLURM_SUBMIT_DIR/active"
+donedir="$SLURM_SUBMIT_DIR/donedir"
 
 ### defining functions ###
 
@@ -197,6 +198,24 @@ convergence_test_RMM_step(){
   echo "RMM step convergence checked"
 }
 
+symmetry_test(){
+  # Function to check if vasp detected a symmetry error
+  if grep -q "change SYMPREC in the INCAR file" "$1/OUTCAR"; then
+    sym_failure=true
+  elif grep -q "internal error in subroutinePOSMAP:" "$1/OUTCAR"; then
+    sym_failure=true
+  elif grep -q "internal error in subroutine IBZKPT:" "$1/OUTCAR"; then
+    sym_failure=true
+  elif grep -q "internal error in subroutine INVGRP:" "$1/OUTCAR"; then
+    sym_failure=true
+  elif grep -q "internal error in subroutineRHOSYG:" "$1/OUTCAR"; then
+    sym_failure=true
+  else
+    sym_failure=false
+  fi
+
+  echo "symmetry checked"
+}
 
 processing_results(){
   echo "processing started"
@@ -205,6 +224,7 @@ processing_results(){
   convergence_test_EDIFF "$workdir"
   convergence_test_RMM_step "$workdir"
   mag_field_test "$workdir"
+  symmetry_test "$workdir"
 
   # We first check if accuracy is reached, if not - this is a failed run, then we check for RMM step etc.
   # Failures are mutually exclusive, so they are checked from more severe to less severe, once a bad result is triggered
@@ -217,7 +237,7 @@ processing_results(){
     echo "Highest band occupied at some k-points" > "$1/fail"
     failure=true
   # Bad result 2: Symmetry recognition problems
-  elif grep -q "change SYMPREC in the INCAR file" "$workdir/OUTCAR"; then
+  elif [ "$sym_failure" = true ] ; then
     echo "Symmetry recognition problems"
     echo "$entry $1 | Symmetry recognition problems" >> $badlist
     echo "Symmetry recognition problems" > "$1/fail"
@@ -296,6 +316,25 @@ convergence_fail_check(){
 }
 
 
+symmetry_fail_check(){
+  # function to detect if symmetry error occurs and deal with it.
+  # Runs VASP once if failure is detected, now with lower SYMPREC - this usually solves most such cases
+  echo "Checking first run for symmetry recognition failure"
+  symmetry_test "$workdir"
+
+  if [ "$sym_failure" = true ] ; then
+    echo "FAILURE: Symmetry recognition problem, performing rerun with lower SYMPREC"
+    echo "$entry $1 | Rerun performed after symmetry error" >> $rerunlist
+    echo "$entry $1 | Rerun performed after symmetry error" > "$1/rerun_attemped"
+    cd "$workdir"
+    echo "" >> INCAR
+    echo "SYMPREC = 0.0001" >> INCAR
+    echo "calling vasp to run again"
+    vasp_runner
+    echo "vasp finished the second attempt"
+  fi
+}
+
 ### Main part ###
 sleep $((RANDOM % 60))
 echo "Starting..."
@@ -315,7 +354,8 @@ do
     # cleaning up after other scripts if we find empty directory we delete it and try another entry
     echo "$entry folder is empty therefore being removed, will try another entry"
     rm -r "$entry_path"
-    rm "$activedir/$entry" # releasing entry from list of active systems
+
+    mv "$outdir/$entry" "$donedir/$entry" # move results for fully completed entry (undeformed and all deformations) to separate folder for pickup
     continue
 
   ###   Case 2:   Undeformed structure calculation     ###
@@ -338,8 +378,6 @@ do
     else
     # 0 add stopfile to claim this job
       echo "$SLURM_JOBID" > "$busy_flag"
-    # set this system as "active" to know that file in outdir should not be tempered with
-      true > "$activedir/$entry"
 
     # 1. copy contents of the undeformed to workdir
       rsync -av $SLURM_SUBMIT_HOST:${undeformed_path:?}/* $workdir
@@ -358,7 +396,8 @@ do
       mkdir "$outdir/$entry" # create folder for the entry in the outdir
       mkdir "$path_out" # create undeformed subfolder in outdir/entry
 
-
+      symmetry_fail_check "$path_out"  # if we detect a failure we attempt to fix it by changing SYMPREC
+      echo "***"
       convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
       echo "***"
       processing_results "$path_out" # analyse results again
@@ -366,7 +405,6 @@ do
       if [ $failure = true ] ; then
         echo "First run and rerun failed, results placed in outdir, no need for deformations - removing $entry from workdir"
         rm -r "$entry_path" # remove whole directory for this entry - no need for deformations if undeformed structure failed
-        rm "$activedir/$entry" # releasing entry from list of active systems
 
       else
         echo "Success, results placed in outdir, undeformed folder removed"
@@ -379,6 +417,7 @@ do
       rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
       echo "***"
     # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
+      cd ..
       rm -r "$workdir"
       rm "$workdir.tar.gz"
       echo "$entry undeformed structure calculated. Exiting."
@@ -425,6 +464,8 @@ do
       # 3. grep on output to see the results and act accordingly
         mkdir "$path_out" # prepare subfolder for deformation, we expect there is already outdir/entry/ which is created during undeformed calculation
 
+        symmetry_fail_check "$path_out" # if we detect a failure we attempt to fix it by changing SYMPREC
+        echo "***"
         convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
         echo "***"
         processing_results "$path_out" # analyse results again
@@ -442,6 +483,7 @@ do
         rsync -av $workdir.tar.gz $SLURM_SUBMIT_HOST:$path_out/rundir.$SLURM_JOBID.tar.gz
         echo "***"
       # 5. Exit loop and delete the folder we were working in - script stops after one vasp calculation regardless of result
+        cd ..
         rm -r "$workdir"
         rm "$workdir.tar.gz"
         echo "$entry deformation $deformation calculated. Exiting."

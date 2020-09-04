@@ -2,6 +2,9 @@ import numpy as np
 import linecache
 import pandas as pd
 
+# Various functions to work with aflow datalist and datadirs.
+
+
 def INCAR_parser(incar_file):
     """Reads moments from MAGMOM tag from INCAR files"""
 
@@ -31,6 +34,7 @@ def INCAR_parser(incar_file):
             magnetic = np.append(magnetic, mom[i])
     return magnetic
     # if no magmom return exception
+
 
 def element_parser(structure_file):
     """Returns list of all elemets from structure file"""

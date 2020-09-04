@@ -127,10 +127,10 @@ def download(file_with_ids_to_download):
         with open('datalist.csv', 'a', encoding="utf-8") as f:
             f.write(newrow)
 
-    #     with open('datadir/' + str(d['material_id']) + str('.cif'), "w+", encoding="utf-8") as f:
-    #         # f.write(d['cif'])
-    #         f.write(d['cifs.conventional_standard'])
-    # print('Done')
+        with open('datadir/' + str(d['material_id']) + str('.cif'), "w+", encoding="utf-8") as f:
+            # f.write(d['cif'])
+            f.write(d['cifs.conventional_standard'])
+    print('Done')
 
 
 def lattice_type_fix(datalist, datadir):
@@ -163,6 +163,8 @@ def lattice_type_fix(datalist, datadir):
 
 
 def id_download(id):
+    """Displays chosen information for a single id"""
+
     rdata = m.query(criteria={"material_id": id},
                     properties=["material_id",                          # essentially a MP Id BUT each compound in MP has multiple calculations each with such number...
                                 "task_id",
@@ -196,6 +198,46 @@ def id_download(id):
         print(d["volume"])
 
 
+def download_custom(file_with_ids_to_download):
+    """Takes a file containing a column of Materials Project ids and downloads chosen info into a .csv file
+    Functionally an exact copy of download().
+    This one is to be used for specific checks. To avoid changing the working one.
+    For regular download one should use simple download()"""
+
+    downloadlist = []
+    with open(file_with_ids_to_download, 'r') as f:
+        for line in f:
+            downloadlist.append(line.strip("\n"))
+
+    rdata = m.query(criteria={"material_id": {"$in": downloadlist}},
+                    properties=["material_id",                          # essentially a MP Id BUT each compound in MP has multiple calculations each with such number...
+                                "pretty_formula",                       # formula where the element amounts are normalized. E.g., "Li2O"
+                                "full_formula",                         # full explicit formula for the unit cell, e.g., "Lu2Al4"
+                                "run_type",
+                                "is_hubbard",
+                                "pseudo_potential.functional",
+                                "hubbards"]
+                    )
+    print('Downloaded information on ', len(rdata), 'compounds, now saving...')
+
+    with open('datalist.csv', 'a') as f:  # we create a csv file to write info into
+        f.write("ID,pretty_formula,compound,run_type,is_hubbard,potential,U\n")
+
+    for num, d in enumerate(rdata):
+        newrow = str(
+            d["material_id"]) + ',' + str(
+            d["pretty_formula"]) + ',' + str(
+            d["full_formula"]) + ',' + str(
+            d["run_type"]) + ',' + str(
+            d["is_hubbard"]) + ',' + str(
+            d["pseudo_potential.functional"]) + ',' + str(
+            d["hubbards"]) + '\n'
+
+        with open('datalist.csv', 'a', encoding="utf-8") as f:
+            f.write(newrow)
+
+    print('Done')
+
 # ------------------------------------------------------------------------------------------------------- #
 #  _____                                           _       _____ _             _     _   _                #
 # /  __ \                                         | |     /  ___| |           | |   | | | |               #
@@ -209,12 +251,16 @@ def id_download(id):
 wdatadir = 'datadir/'
 wdatalist = 'datalist.csv'
 
-# step 1:
+# # Routine:
+# # step 1:
 # chose_ids_to_download()
-# step 2:
+# # step 2:
 # download('ids_to_download_all')
-# step 3:
+# # step 3:
 # lattice_type_fix(wdatalist, wdatadir)
 
+# Extra stuff:
+
+download_custom('ids')
 # id_download('mp-18442')
-id_download('mp-778')
+# id_download('mp-778')
