@@ -11,7 +11,6 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from Tools import POSCAR_reader
 
 
-
 def calculate_mag_field(moment, volume):
     """Takes cell moment in [mB] and volume in [A^3] and returns value for internal magnetic field in [T]"""
 
@@ -289,19 +288,23 @@ def screener_before(datalist, database_type):
         for item in df.index.tolist():
             pbar.update(1)                              # Updating progress bar at each step
 
-        ### Write number of sites into datalist:
+        # Write number of sites into datalist:
             if database_type== 'aflow':
                 df.loc[item, 'mag_sites'] = mag_sites_calculator(item)
             elif database_type== 'MP':
                 df.loc[item, 'mag_sites'] = mag_sites_calculator_MP(item)
-        ### Write internal magnetic field into datalist:
+
+        # Write internal magnetic field into datalist:
             df.loc[item, 'mag_field'] = calculate_mag_field(df.loc[item, 'moment_cell'], df.loc[item, 'volume_cell'])
-        ### Wrire an updated datalist back to file
+
+        # Wrire an updated datalist back to file
         df.to_csv(datalist.replace('.csv', '_updated.csv'))
-        ### drops everything that does not fit the criteria, creating new datalist file at each sieve
+
+        # drops everything that does not fit the criteria, creating new datalist file at each sieve
     sieve(datalist.replace('.csv', '_updated.csv'), 'mag_field', min_mag_field)
     sieve(datalist.replace('.csv', '_updated_sieved.mag.field.csv'), 'mag_sites', min_site_number)
-        ### drops duplicates, creates new datalist file __ PERHAPS THIS SHOULD BE FIRST STEP TO LOWER FURTHER WORKLOAD
+
+        # Drops duplicates, creates new datalist file __ PERHAPS THIS SHOULD BE FIRST STEP TO LOWER FURTHER WORKLOAD
     duplicates(datalist.replace('.csv', '_updated_sieved.mag.field_sieved.mag.sites.csv'))
     print("Done")
 
@@ -341,7 +344,7 @@ def screener_after(datalist):
             df.loc[item, 'volume_u'] = moment_volume_after(item, 'undeformed')[1]
 
             # Calculate mag_field after
-            df.loc[item, 'magF_u'] = moment_volume_after(item, 'undeformed')[2]
+            df.loc[item, 'magF_u'] = abs(moment_volume_after(item, 'undeformed')[2]) # we are only interested in absolute value
 
             # Get primitive cell parameters determined by vasp for this structure
             df.loc[item, 'VASP_a_param'] = geometry_after(item, 'undeformed')[0]
@@ -355,7 +358,6 @@ def screener_after(datalist):
             df.loc[item, 'energy'] = energy(item, 'undeformed')
 
             # Calculate magnetoelastic parameter
-
             Mel_a = magnetoelastic(item, 'a')[0]
             Mel_b = magnetoelastic(item, 'b')[0]
             Mel_c = magnetoelastic(item, 'c')[0]
@@ -388,16 +390,23 @@ def sieve_temp01(datalist):
     """Removes entries from datalist according to selected sieving criteria"""
 
     df = pd.read_csv(datalist, index_col=0, sep=',')
-    df2 = pd.DataFrame(columns=df.columns)
+    # df2 = pd.DataFrame(columns=df.columns)
 
     for item in df.index.tolist():
-        if 'O' in str(df.loc[item, 'species']):
-            rows = df.loc[item]
-            df2 = df2.append(rows)
-            df = df.drop([item], axis=0)
+        # if 'O' in str(df.loc[item, 'species']):
+        #     rows = df.loc[item]
+        #     df2 = df2.append(rows)
 
-    df2.to_csv(datalist.replace(".csv", '_O.csv'))
-    df.to_csv(datalist.replace(".csv", "_no_O.csv"))
+        deformations = os.listdir(vasp_results_dir + '/' + str(item))
+        for deformation in deformations:
+            if os.path.exists(vasp_results_dir + '/' + str(item) + '/' + deformation + "/OUTCAR"):
+                pass
+            else:
+                df = df.drop([item], axis=0)
+                break
+
+    # df2.to_csv(datalist.replace(".csv", '_O.csv'))
+    df.to_csv(datalist.replace(".csv", "_no_problem.csv"))
 
 
 def sieve_temp02(datalist):
@@ -442,24 +451,25 @@ def sieve_temp02(datalist):
 
 # vasp_results_dir = 'D:/MCES/MP/batch1/outdir'
 
-wdatadir_structure = '../Database/MP/datadir/'
-wdatalist = '../Database/MP/step2_failed_sieved.csv'
+wdatadir_structure = 'X:/MCES/MP/datadir/'
+wdatalist = 'D:/MCES//MP/step2_success_sieved.csv'
 
 datalist = 'X:/MCES/Aflow/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_out.csv'
-outdir = 'X:/MCES/Aflow/outdir'
+outdir = 'X:/MCES/MP/initial attempt - apparently wrong data from MRESTER or they had an update/outdir/outdir'
 
 vasp_results_dir = outdir
 
-# screener_before(wdatalist, 'MP')
+# screener_before('X:/MCES/MP/step2.csv', 'MP')
 
-sieve_temp02(wdatalist)
+# sieve_temp02(wdatalist)
 
 # print(calculate_mag_field(16.1092, 107.51))
 
-# screener_after(datalist)
+# sieve_temp01('X:/MCES/MP/initial attempt - apparently wrong data from MRESTER or they had an update/outdir/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_complete.csv')
+
+# screener_after('X:/MCES/MP/initial attempt - apparently wrong data from MRESTER or they had an update/outdir/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_complete_no_problem.csv')
 
 
 # screener_after('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
 # sieve('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_out.csv', 'magF_u', 0.45)
-
 

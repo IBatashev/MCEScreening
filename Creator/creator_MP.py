@@ -292,14 +292,14 @@ warnings.filterwarnings("ignore")  # slightly dirty, but simple way to disable p
 
 ### Setting which database we work with ###
 
-wdatadir = 'X:/MCES/MP/datadir/'
-wdatalist = 'X:/MCES/MP/step2_failed_sieved.csv'
+wdatadir = 'D:/MCES/MP/datadir/'
+wdatalist = 'D:/MCES/MP/step2_failed_sieved.csv'
 
 # wdatalist = '../Database/MP/dt.csv'
 # wdatalist = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
 
 
-output_path = 'X:/MCES/MP/inputdir_step2_run'
+output_path = 'D:/MCES/MP/inputdir_step3_run'
 
 
 # wdatadir = 'D:/MCES/MP/test4/MP_structures/'

@@ -24,12 +24,12 @@ def writer(out_path, poscar_info, at_type_list, calculation_type, moments):
 
     incar = open(out_path + 'INCAR', 'w')
     incar.write(
-        "ALGO = Fast \n"
-        "PREC = Accurate \n"
+        "ALGO = Normal \n"
+        "PREC = Normal \n"
         "ISIF = 2 \n"
         "ISPIN = 2 \n"
         "ISMEAR = 2  \n"
-        "NELM = 100 \n"
+        "NELM = 50 \n"
         "SIGMA = 0.2 \n"
         "KSPACING = 0.5 \n"
         "LORBIT = 10 \n"
@@ -39,6 +39,10 @@ def writer(out_path, poscar_info, at_type_list, calculation_type, moments):
         "GGA_COMPAT = .FALSE.\n"
         "LREAL = A\n"
         #"SYMPREC = 0.0001 \n"
+        "AMIX = 0.1 \n"
+        "BMIX = 0.00001 \n"
+        "AMIX_MAG = 0.2 \n"
+        "BMIX_MAG = 0.00001 \n"
     )
     incar.write(
         "ENCUT = " + str(encut) + "\n"

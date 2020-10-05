@@ -177,6 +177,7 @@ convergence_test_EDIFF(){
   # Function to test if chosen EDIFF has been reached, takes path to calculation folder as argument
 
   Algo=$(grep "ALGO" "$1/INCAR"  | tail -1 | awk '{print $3}')
+  converged_EDIFF=false
 
   if [ "$Algo" = Normal ] ; then
     dE=$(grep "DAV" "$1/OSZICAR"  | tail -1 | awk '{print $4}' | tr E e | awk '{print $1 < 0 ? -$1 : $1}' | xargs printf "%.8f")
@@ -201,6 +202,7 @@ convergence_test_step(){
   # Function to test if number of steps is suspiciously large, takes path to calculation folder as argument
 
   Algo=$(grep "ALGO" "$1/INCAR"  | tail -1 | awk '{print $3}')
+  converged_step=false
 
   if [ "$Algo" = Normal ] ; then
     step=$(grep "DAV" "$1/OSZICAR"  | tail -1 | awk '{print $2}')
@@ -208,7 +210,7 @@ convergence_test_step(){
     step=$(grep "RMM" "$1/OSZICAR"  | tail -1 | awk '{print $2}')
   fi
 
-  if (( $(echo "$step < 70" |bc -l) )) ; then
+  if (( $(echo "$step < 50" |bc -l) )) ; then
     converged_step=true
   else
     converged_step=false
@@ -238,11 +240,11 @@ symmetry_test(){
 processing_results(){
   echo "processing started"
   # Function to analyse how successful was the calculation, takes outputdir/entry/subfolder as argument
-  symmetry_test "$workdir"
   k_sigma_test "$workdir"
   convergence_test_EDIFF "$workdir"
   convergence_test_step "$workdir"
   mag_field_test "$workdir"
+  symmetry_test "$workdir"
 
   # We first check if accuracy is reached, if not - this is a failed run, then we check for step etc.
   # Failures are mutually exclusive, so they are checked from more severe to less severe, once a bad result is triggered
@@ -322,6 +324,7 @@ convergence_fail_check(){
   fi
 
   if [ $convergence_failure = true ] ; then
+
     echo "First run failed, attepting to rerun using obtained CHGGAR"
     cd "$workdir"
     echo "" >> INCAR
@@ -329,7 +332,11 @@ convergence_fail_check(){
     echo "NELMDL = 10"  >> INCAR
     echo "calling vasp to run again"
     vasp_runner
-    echo "vasp finished the second attempt"
+    cp $workdir/CHGCAR /scratch/ibatashev/charges/$SLURM_JOBID_CHARGCAR.$repeat
+
+
+    echo "vasp finished the subsequent attempt"
+
   fi
 }
 
@@ -413,8 +420,14 @@ do
       mkdir "$outdir/$entry" # create folder for the entry in the outdir
       mkdir "$path_out" # create undeformed subfolder in outdir/entry
 
+      cp $workdir/CHGCAR /scratch/ibatashev/charges/$SLURM_JOBID_CHARGCAR.1
+
       symmetry_fail_check "$path_out"  # if we detect a failure we attempt to fix it by changing SYMPREC
       echo "***"
+      repeat=2
+      convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
+      echo "***"
+      repeat=3
       convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
       echo "***"
       processing_results "$path_out" # analyse results again
@@ -482,9 +495,14 @@ do
 
       # 3. grep on output to see the results and act accordingly
         mkdir "$path_out" # prepare subfolder for deformation, we expect there is already outdir/entry/ which is created during undeformed calculation
+        cp $workdir/CHGCAR /scratch/ibatashev/charges/$SLURM_JOBID_CHARGCAR.1
 
         symmetry_fail_check "$path_out" # if we detect a failure we attempt to fix it by changing SYMPREC
         echo "***"
+        repeat=2
+        convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
+        echo "***"
+        repeat=3
         convergence_fail_check "$path_out" # if we detect a failure we attempt to fix it by continuing calculation with CHGCAR from previous run
         echo "***"
         processing_results "$path_out" # analyse results again

@@ -36,10 +36,10 @@ def outdir_copy(datalist, source, destination):
 
 
 
-wdatalist = 'X:/MCES/MP/fail_symmetry_recognition_problems.csv'
+wdatalist = 'D:/MCES/MP/fail_symmetry_recognition_problems.csv'
 
-trashdir = 'X:/MCES/MP/trash'
-outdir = 'X:/MCES/MP/outdir'
-outdir2 = 'X:/MCES/MP/outdir_unknown'
+trashdir = 'D:/MCES/MP/trash'
+outdir = 'D:/MCES/MP/outdir'
+outdir2 = 'D:/MCES/MP/outdir_unknown'
 
 outdir_remove(wdatalist, outdir, trashdir)
