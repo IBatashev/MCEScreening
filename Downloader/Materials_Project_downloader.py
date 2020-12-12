@@ -215,13 +215,12 @@ def download_custom(file_with_ids_to_download):
                                 "full_formula",                         # full explicit formula for the unit cell, e.g., "Lu2Al4"
                                 "run_type",
                                 "is_hubbard",
-                                "pseudo_potential.functional",
-                                "hubbards"]
+                                "last_updated"]
                     )
     print('Downloaded information on ', len(rdata), 'compounds, now saving...')
 
     with open('datalist.csv', 'a') as f:  # we create a csv file to write info into
-        f.write("ID,pretty_formula,compound,run_type,is_hubbard,potential,U\n")
+        f.write("ID,pretty_formula,compound,run_type,last_updated\n")
 
     for num, d in enumerate(rdata):
         newrow = str(
@@ -230,8 +229,7 @@ def download_custom(file_with_ids_to_download):
             d["full_formula"]) + ',' + str(
             d["run_type"]) + ',' + str(
             d["is_hubbard"]) + ',' + str(
-            d["pseudo_potential.functional"]) + ',' + str(
-            d["hubbards"]) + '\n'
+            d["last_updated"]) + '\n'
 
         with open('datalist.csv', 'a', encoding="utf-8") as f:
             f.write(newrow)
@@ -261,6 +259,6 @@ wdatalist = 'datalist.csv'
 
 # Extra stuff:
 
-download_custom('ids')
-# id_download('mp-18442')
+# download_custom('ids')
+download('ids')
 # id_download('mp-778')

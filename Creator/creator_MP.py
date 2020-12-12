@@ -23,6 +23,7 @@ def single_run(calc_type, updated_lattice):
     path_to_calc = path + calc_type + "/"
     os.mkdir(path_to_calc)
     POSCAR_maker.writer_MP(path_to_calc, poscar_content, updated_lattice)
+    # POSCAR_maker.structure_corrector_MP(path_to_calc)
     INCAR_maker.writer(path_to_calc, poscar_content, elem_list, calc_type, magmoms)
     POTCAR_maker.writer(path_to_calc, elem_list)
 
@@ -214,7 +215,7 @@ def deformed_lattice(lattice_type, n, a, b, c, alpha, beta, gamma):
                 single_run(deformation_type, new_lattice)
 
 
-def creator(datalist, datadir, def_factor=0.05, field=False):
+def creator(datalist, datadir, def_factor=0.05, undeformed=True, field=False):
     df = pd.read_csv(datalist, index_col=0, sep=',')
     with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice progress bar
         pbar.set_description("Processing datalist")
@@ -235,6 +236,7 @@ def creator(datalist, datadir, def_factor=0.05, field=False):
             poscar_string = ''.join(poscar_content)  # merging poscar content in a single string so pymatgen can read it
             poscar = Poscar.from_string(poscar_string)  # using pymatgen to acquire our structure from poscar content
             structure = poscar.structure
+
 
             a_par = structure.lattice.a
             b_par = structure.lattice.b
@@ -257,12 +259,12 @@ def creator(datalist, datadir, def_factor=0.05, field=False):
             # global magmoms
             # magmoms = (df.loc[item, 'magmom']).replace(';', '').strip('][')
 
-            if def_factor == 0:  # Check if we want deformation to happen
+            if undeformed == True: # check if we want undeformed structure
                 undeformed_lattice(a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
-            else:
-                undeformed_lattice(a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
+            if def_factor != 0:  # Check if we want deformation to happen
+                # undeformed_lattice(a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
                 deformed_lattice(lat_type, def_factor, a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
-            if field == True:
+            if field == True: # check if we want applied field on undeformed structure
                 applied_field(a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
 
 
@@ -293,13 +295,15 @@ warnings.filterwarnings("ignore")  # slightly dirty, but simple way to disable p
 ### Setting which database we work with ###
 
 wdatadir = 'D:/MCES/MP/datadir/'
-wdatalist = 'D:/MCES/MP/step2_failed_sieved.csv'
+# wdatalist = 'D:/MCES/MP/step4_failed_sieved_input_for_step5.csv'
+
+wdatalist = 'D:/MCES/MP/step_BEXT_1_input.csv'
 
 # wdatalist = '../Database/MP/dt.csv'
 # wdatalist = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
 
 
-output_path = 'D:/MCES/MP/inputdir_step3_run'
+output_path = 'D:/MCES/MP/inputdir_BEXT_1'
 
 
 # wdatadir = 'D:/MCES/MP/test4/MP_structures/'
@@ -314,4 +318,5 @@ output_path = 'D:/MCES/MP/inputdir_step3_run'
 # wdatadir_structure = '../Database/TESTS/TestDB_hex/datadir_TestDB_hex/'
 # output_path = '../Database/TESTS/TestDB_hex/datadir_TestDB_hex/'
 
-creator(wdatalist, wdatadir)
+creator(wdatalist, wdatadir, def_factor=0, undeformed=False, field=True)
+# creator('MnAs.csv', 'datadir/')

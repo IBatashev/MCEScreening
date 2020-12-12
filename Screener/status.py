@@ -3,7 +3,7 @@ import pandas as pd
 import tqdm
 
 
-def status_before(datalist, outdir, start=-1):
+def status_before(datalist, inputdir, start=-1):
     """ Function that reads through inputdir and lists undeformed structure and all it's
     deformations and writes result to a new .csv file."""
     counter = 0
@@ -13,7 +13,7 @@ def status_before(datalist, outdir, start=-1):
         pbar.set_description("Processing datalist")
         for item in df.index.tolist():
             pbar.update(1)                              # Updating progress bar at each step
-            path = outdir + '/' + str(item)
+            path = inputdir + '/' + str(item)
             deformations = os.listdir(path)
             for deformation in deformations:
                 df.loc[item, str(deformation)] = 'to_run'
@@ -188,14 +188,16 @@ datalist_before = ''
 
 # datalist_before = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
 
-outdir = 'D:/MCES/MP/outdir_step3/out_first'
+outdir = 'D:/MCES/MP/outdir'
 datalist_after = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun.csv'
 
 
 # status_before(datalist_before, inputdir)
 
-status_after(datalist_after, outdir)
+# status_after(datalist_after, outdir)
 
 
-sieve_for_success('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun.csv')
-sieve_for_torun('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
+# sieve_for_success('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun.csv')
+# sieve_for_torun('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
+# status_before('MnAs.csv', 'MnAs_in')
+status_after('MnAs_beforeRun.csv', 'MnAs_o')

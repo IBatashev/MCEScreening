@@ -36,7 +36,7 @@ def outdir_copy(datalist, source, destination):
 
 
 
-wdatalist = 'D:/MCES/MP/fail_symmetry_recognition_problems.csv'
+wdatalist = 'D:/MCES/MP/step3_failed_sieved_accuracy.csv'
 
 trashdir = 'D:/MCES/MP/trash'
 outdir = 'D:/MCES/MP/outdir'

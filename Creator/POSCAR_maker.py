@@ -1,4 +1,6 @@
 from pymatgen.io.vasp import Poscar
+from pymatgen.core import Structure, IStructure
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 import numpy as np
 
 
@@ -47,5 +49,19 @@ def writer_MP(out_path, poscar_content, lattice):
     o.write(poscar_content[5])                    # writing type of atoms
     o.write(poscar_content[6])                    # writing number of atoms - copied from original poscar
     o.write('Direct' + '\n')                      # writing type of coordinates, again we will always get direct coords from pymatgen, so we must have 'Direct' here
-    o.write(' ' + str(structure.frac_coords).replace('[', '').replace(']', ''))  # writing direct coordinates from pymatgen
+    o.close()
+    fmt = '% 1.10f', '%1.10f', '% 1.10f'
+    f = open(out_path+filename, 'ab')
+    np.savetxt(f, structure.frac_coords, fmt=fmt)
+    # o.write(' ' + str(structure.frac_coords).replace('[', '').replace(']', ''))  # writing direct coordinates from pymatgen
+    f.close()
+
+
+def structure_corrector_MP(out_path):
+    structure = IStructure.from_file(out_path + '/POSCAR')
+    a = SpacegroupAnalyzer(structure, symprec=1e-4)
+    # structure = a.get_conventional_standard_structure()
+    structure = a.get_primitive_standard_structure()
+    p = Poscar(structure)
+    p.write_file(out_path + 'POSCAR')
 
