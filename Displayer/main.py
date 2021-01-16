@@ -4,12 +4,12 @@ import pandas as pd
 from datetime import datetime
 from datetime import date
 from os import listdir
-
+# from pybase64 import b64decode
 
 from bokeh.io import curdoc
 from bokeh.layouts import column, layout
 from bokeh.models import ColumnDataSource,  DataTable, TableColumn, NumberFormatter, CustomJS, Panel, Tabs
-from bokeh.models import Div, Select, Slider, TextInput, Button, Span, DateRangeSlider
+from bokeh.models import Div, Select, Slider, TextInput, Button, Span, DateRangeSlider, FileInput
 from bokeh.models import HoverTool, CrosshairTool
 from bokeh.plotting import figure
 
@@ -32,16 +32,12 @@ datalist.reset_index(inplace=True)  # setting index to be a separate column
 datalist.fillna(0, inplace=True)   # replace missing values with zero
 datalist['date_complete'] = pd.to_datetime(datalist['date_complete'], format='%d-%m-%y')
 datalist['date_complete'] = datalist['date_complete'].dt.date
-#
-# datalist['update_on'] = pd.to_datetime(datalist['update_on'], format='%d-%m-%Y  %H:%M:%S %p')
-# datalist['update_on'] = datalist['update_on'].dt.date
-
 datalist["color"] = np.where(datalist["Mel_full"] >= 0, "orange", "grey")  # adding a column with colour
 
 # selecting available axis
 axis_map = {
     "Magneto Elastic": "Mel_full",
-    "Applied Field": "BEXT",
+    "Applied Field Response": "BEXT",
     "Mag. El. a": "Mel_a",
     "Mag. El. b": "Mel_b",
     "Mag. El. c": "Mel_c",

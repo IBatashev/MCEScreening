@@ -45,7 +45,23 @@ def applied_field(a, b, c, alpha, beta, gamma):
     single_run(calculation_type, new_lattice)
 
 
-def deformed_lattice(lattice_type, n, a, b, c, alpha, beta, gamma):
+def volumetric_deformation(n, a, b, c, alpha, beta, gamma):
+    deformation_types = ['V_dec', 'V_inc']
+    for deformation_type in deformation_types:
+        if deformation_type == "V_dec":
+            new_lattice = Lattice.from_parameters(a, b, c, alpha, beta, gamma)
+            volume_before = new_lattice.volume
+            new_lattice = new_lattice.scale((1 - n) * volume_before)
+            single_run(deformation_type, new_lattice)
+
+        if deformation_type == "V_inc":
+            new_lattice = Lattice.from_parameters(a, b, c, alpha, beta, gamma)
+            volume_before = new_lattice.volume
+            new_lattice = new_lattice.scale((1 + n) * volume_before)
+            single_run(deformation_type, new_lattice)
+
+
+def uniaxial_defromations(lattice_type, n, a, b, c, alpha, beta, gamma):
     """Takes lattice type as argument and depending on symmetry creates all necessary files to run VASP jobs for all
     possible independent deformations.
     Depending on symmetry create a 3x3 deformation matrix which determines weather a, b, c are deformed. This matrix is
@@ -215,7 +231,7 @@ def deformed_lattice(lattice_type, n, a, b, c, alpha, beta, gamma):
                 single_run(deformation_type, new_lattice)
 
 
-def creator(datalist, datadir, def_factor=0.05, undeformed=True, field=False):
+def creator(datalist, datadir, def_factor=0.05, undeformed=True, hydrostatic=False, uniaxial=False, field=False):
     df = pd.read_csv(datalist, index_col=0, sep=',')
     with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice progress bar
         pbar.set_description("Processing datalist")
@@ -259,12 +275,13 @@ def creator(datalist, datadir, def_factor=0.05, undeformed=True, field=False):
             # global magmoms
             # magmoms = (df.loc[item, 'magmom']).replace(';', '').strip('][')
 
-            if undeformed == True: # check if we want undeformed structure
+            if undeformed is True:  # check if we want undeformed structure
                 undeformed_lattice(a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
-            if def_factor != 0:  # Check if we want deformation to happen
-                # undeformed_lattice(a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
-                deformed_lattice(lat_type, def_factor, a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
-            if field == True: # check if we want applied field on undeformed structure
+            if uniaxial is True & (def_factor != 0):  # Check if we want deformation to happen
+                uniaxial_defromations(lat_type, def_factor, a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
+            if (hydrostatic is True) & (def_factor != 0):  # check if we want uniaxial deformation
+                volumetric_deformation(def_factor, a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
+            if field is True:  # check if we want applied field on undeformed structure
                 applied_field(a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
 
 
@@ -297,13 +314,13 @@ warnings.filterwarnings("ignore")  # slightly dirty, but simple way to disable p
 wdatadir = 'D:/MCES/MP/datadir/'
 # wdatalist = 'D:/MCES/MP/step4_failed_sieved_input_for_step5.csv'
 
-wdatalist = 'D:/MCES/MP/step_BEXT_1_input.csv'
+wdatalist = 'D:/MCES/MP/step0.csv'
 
 # wdatalist = '../Database/MP/dt.csv'
 # wdatalist = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
 
 
-output_path = 'D:/MCES/MP/inputdir_BEXT_1'
+output_path = 'D:/MCES/MP/inputdir_V'
 
 
 # wdatadir = 'D:/MCES/MP/test4/MP_structures/'
@@ -318,5 +335,5 @@ output_path = 'D:/MCES/MP/inputdir_BEXT_1'
 # wdatadir_structure = '../Database/TESTS/TestDB_hex/datadir_TestDB_hex/'
 # output_path = '../Database/TESTS/TestDB_hex/datadir_TestDB_hex/'
 
-creator(wdatalist, wdatadir, def_factor=0, undeformed=False, field=True)
+creator(wdatalist, wdatadir, def_factor=0.05, hydrostatic=True, undeformed=False, field=False)
 # creator('MnAs.csv', 'datadir/')

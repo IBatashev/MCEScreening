@@ -40,6 +40,7 @@ wdatalist = 'D:/MCES/MP/step3_failed_sieved_accuracy.csv'
 
 trashdir = 'D:/MCES/MP/trash'
 outdir = 'D:/MCES/MP/outdir'
-outdir2 = 'D:/MCES/MP/outdir_unknown'
+outdir2 = 'D:/MCES/MP/outdir_V/done'
 
-outdir_remove(wdatalist, outdir, trashdir)
+# outdir_remove(wdatalist, outdir, trashdir)
+outdir_copy('D:/MCES/MP/V_beforeRun_afterRun_success_sieved.csv', outdir2, 'D:/MCES/MP/outdir_VVV')

@@ -27,6 +27,7 @@ def status_after(datalist, outdir):
     their with their deformations and number of warnings failures"""
 
     sub_calculations_list = ['a_inc', 'a_dec', 'b_inc', 'b_dec', 'c_inc', 'c_dec']
+    # sub_calculations_list = ['V_inc', 'V_dec']
     fail_counter = 0
     run_counter = 0
     total_warning_counter = 0
@@ -114,56 +115,22 @@ def sieve_for_success(datalist):
     We actually only need it if we want to use Screener module on a run that was not completely successful yet, as
     Screener cannot properly deal with entries that have failures. .csv of failures is just an extra for convenience"""
 
-    success_counter = 0
-    fail_counter = 0
+    calculations_checklist = ['V_inc', 'V_dec']
+
     df = pd.read_csv(datalist, index_col=0, sep=',')
-    df_fail = df
-    for item in df.index.tolist():
-        if (df.loc[item, 'undeformed'] != 'failed') and \
-                (df.loc[item, 'a_dec'] != 'failed') and \
-                (df.loc[item, 'a_inc'] != 'failed') and \
-                (df.loc[item, 'b_dec'] != 'failed') and \
-                (df.loc[item, 'b_inc'] != 'failed') and \
-                (df.loc[item, 'c_dec'] != 'failed') and \
-                (df.loc[item, 'c_inc'] != 'failed'):
-            success_counter = success_counter + 1
-            df_fail = df_fail.drop([item], axis=0)
-        else:
-            df = df.drop([item], axis=0)
-            fail_counter = fail_counter + 1
 
-    print('Number of successful entries', success_counter)
-    print('Number of failed entries', fail_counter)
+    df_suc = df[~df[calculations_checklist].isin(['failed', 'to_run']).any(axis=1)]
+    df_fail = df[df[calculations_checklist].isin(['failed']).any(axis=1)]
+    df_torun = df[df[calculations_checklist].isin(['to_run']).any(axis=1)]
 
-    df.to_csv(datalist.replace(".csv", '_success_sieved.csv'))
+    df_suc.to_csv(datalist.replace(".csv", '_success_sieved.csv'))
     df_fail.to_csv(datalist.replace(".csv", '_failed_sieved.csv'))
-
-
-def sieve_for_torun(datalist):
-
-    success_counter = 0
-    torun_counter = 0
-    df = pd.read_csv(datalist, index_col=0, sep=',')
-    df_torun = df
-    for item in df.index.tolist():
-        if (df.loc[item, 'undeformed'] != 'to_run') and \
-                (df.loc[item, 'a_dec'] != 'to_run') and \
-                (df.loc[item, 'a_inc'] != 'to_run') and \
-                (df.loc[item, 'b_dec'] != 'to_run') and \
-                (df.loc[item, 'b_inc'] != 'to_run') and \
-                (df.loc[item, 'c_dec'] != 'to_run') and \
-                (df.loc[item, 'c_inc'] != 'to_run'):
-            success_counter = success_counter + 1
-            df_torun = df_torun.drop([item], axis=0)
-        else:
-            df = df.drop([item], axis=0)
-            torun_counter = torun_counter + 1
-
-    print('Number of complete entries', success_counter)
-    print('Number of not yet run entries', torun_counter)
-
-    df.to_csv(datalist.replace(".csv", '_complete.csv'))
     df_torun.to_csv(datalist.replace(".csv", '_torun_sieved.csv'))
+
+    print('Number of successful entries', len(df_suc.index))
+    print('Number of failed entries', len(df_fail.index))
+    print('Number of not yet run entries', len(df_torun.index))
+
 
 # ------------------------------------------------------------------------------------------------------- #
 #  _____                                           _       _____ _             _     _   _                #
@@ -183,21 +150,20 @@ def sieve_for_torun(datalist):
 
 # outdir = 'D:/MCES/MP/batch1/outdir'
 
-inputdir = 'D:/MCES/MP/inputdir'
-datalist_before = ''
+inputdir = 'D:/MCES/MP/inputdir_V'
+datalist_before = 'D:/MCES/MP/step0.csv'
 
 # datalist_before = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv'
 
-outdir = 'D:/MCES/MP/outdir'
-datalist_after = 'D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun.csv'
+outdir = 'D:/MCES/MP/outdir_V/done'
+datalist_after = 'D:/MCES/MP/V_beforeRun.csv'
 
 
 # status_before(datalist_before, inputdir)
 
 # status_after(datalist_after, outdir)
+# status_after(datalist_after, outdir)
 
-
-# sieve_for_success('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun.csv')
+sieve_for_success('D:/MCES/MP/V_beforeRun_afterRun.csv')
 # sieve_for_torun('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved.csv')
 # status_before('MnAs.csv', 'MnAs_in')
-status_after('MnAs_beforeRun.csv', 'MnAs_o')

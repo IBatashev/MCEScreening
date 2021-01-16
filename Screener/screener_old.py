@@ -14,6 +14,17 @@ import timeit
 import scipy
 from collections import Counter
 
+# ----------------------------------------------- #
+#  _    _  ___  ______ _   _ _____ _   _ _____
+# | |  | |/ _ \ | ___ \ \ | |_   _| \ | |  __ \
+# | |  | / /_\ \| |_/ /  \| | | | |  \| | |  \/
+# | |/\| |  _  ||    /| . ` | | | | . ` | | __
+# \  /\  / | | || |\ \| |\  |_| |_| |\  | |_\ \
+#  \/  \/\_| |_/\_| \_\_| \_/\___/\_| \_/\____/
+# ----------------------------------------------- #
+
+# This old version of screener is much slower but can be used to troubleshoot several functions in a convenient way separately
+# It may be outdated as it has not been ativcely used since Dec 2020"""
 
 def calculate_mag_field(moment, volume):
     """Takes cell moment in [mB] and volume in [A^3] and returns value for internal magnetic field in [T]"""
@@ -230,29 +241,24 @@ def geometry_after(ID, deformation):
         return '', '', ''
 
 
-def moment_volume_after(ID='', deformation='', file=''):
+def moment_volume_after(ID, deformation):
     """Read OUTCAR file for chosen deformation type and return moment, volume and
     value of magnetic field based on moment and volume.
-    If chosen deformation is n/a for this ID an empty string will be returned
-    If file is specified all information will be taken from it instead"""
+    If chosen deformation is n/a for this ID an empty string will be returned"""
 
-    if file == '':
-        path_to_data = vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR"
-
+    if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
+        with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
+            moment_lines = []
+            for line in search:
+                if 'volume of cell' in line:
+                    volume = (float(line.split()[-1]))
+                if 'tot' in line:
+                    moment_lines.append(line)
+        moment = float(moment_lines[-2].split()[-1])
+        field_after = calculate_mag_field(moment, volume)
+        return moment, volume, field_after
     else:
-        path_to_data = file
-
-    with open(path_to_data) as search:
-        moment_lines = []
-        for line in search:
-            if 'volume of cell' in line:
-                volume = (float(line.split()[-1]))
-            if 'tot' in line:
-                moment_lines.append(line)
-    moment = float(moment_lines[-2].split()[-1])
-    field_after = calculate_mag_field(moment, volume)
-    return moment, volume, field_after
-
+        return '', '', ''
 
 
 def sym_after(ID, deformation):
@@ -263,20 +269,6 @@ def sym_after(ID, deformation):
                 if 'Routine SETGRP: Setting up the symmetry group for a' in line:
                     symmetry = (next(search)).strip("\n")
         return symmetry
-    else:
-        return ''
-
-
-def energy(ID, deformation):
-    """ Gives total energy calculated by VASP for chosen deformation. If Deformation is n/a returns an empty string"""
-    if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
-        with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
-            energy_lines = []
-            for line in search:
-                if 'free  energy   TOTEN' in line:
-                    energy_lines.append(line)
-        tot_energy = round(float(energy_lines[-1].split()[-2]), 4)
-        return tot_energy
     else:
         return ''
 
@@ -299,6 +291,20 @@ def archive_reader(ID, deformation):
                     content = str(f.read()).split('\\n')
                     algorithm_step = content[-3].split()
         return algorithm_step[0] + algorithm_step[1]
+    else:
+        return ''
+
+
+def energy(ID, deformation):
+    """ Gives total energy calculated by VASP for chosen deformation. If Deformation is n/a returns an empty string"""
+    if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
+        with open(vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR") as search:
+            energy_lines = []
+            for line in search:
+                if 'free  energy   TOTEN' in line:
+                    energy_lines.append(line)
+        tot_energy = round(float(energy_lines[-1].split()[-2]), 4)
+        return tot_energy
     else:
         return ''
 
@@ -362,34 +368,39 @@ def magnetoelastic(ID, deformation):
         return '', '', '', ''
 
 
-def magnetoelastic_moment(moment_dec, moment, moment_inc):
+def magnetoelastic_moment(ID, deformation):
+    if deformation + '_inc' in os.listdir(vasp_results_dir + '/' + str(ID)):
+        moment_inc, volume_inc, field_inc = moment_volume_after(ID, deformation+'_inc')
+        moment_dec, volume_dec, field_dec = moment_volume_after(ID, deformation + '_dec')
+        moment, volume, field = moment_volume_after(ID, 'undeformed')
+        try:
+            moment_change_dec = moment_dec/moment
+            moment_change_inc = moment_inc/moment
+        except ZeroDivisionError:
+            return '', '', '', ''
 
-    if moment and moment_dec and moment_inc != 0.0:
-        moment_change_dec = moment_dec/moment
-        moment_change_inc = moment_inc/moment
-    else:
-        return 0, 0, 0, 0
+        y = [moment_change_dec, 1, moment_change_inc]
+        x = [0.95, 1, 1.05]
 
-    y = [moment_change_dec, 1, moment_change_inc]
-    x = [0.95, 1, 1.05]
+        slope, fit_quality = linfit(x, y)
 
-    slope, fit_quality = linfit(x, y)
+        if fit_quality < 0.75:
+            extremum = parabfit(x, y)
 
-    if fit_quality < 0.75:
-        extremum = parabfit(x, y)
-
-        if abs(extremum[0] - 0.95) > abs(1.05 - extremum[0]):
-            x2 = [0.95, 1, extremum[0]]
-            y2 = [moment_change_dec, 1, extremum[1]]
-            new_slope, new_fit_quality = linfit(x2, y2)
+            if abs(extremum[0] - 0.95) > abs(1.05 - extremum[0]):
+                x2 = [0.95, 1, extremum[0]]
+                y2 = [moment_change_dec, 1, extremum[1]]
+                new_slope, new_fit_quality = linfit(x2, y2)
+            else:
+                x2 = [extremum[0], 1, 1.05]
+                y2 = [extremum[1], 1, moment_change_inc]
+                new_slope, new_fit_quality = linfit(x2, y2)
         else:
-            x2 = [extremum[0], 1, 1.05]
-            y2 = [extremum[1], 1, moment_change_inc]
-            new_slope, new_fit_quality = linfit(x2, y2)
-    else:
-        new_slope, new_fit_quality = slope, ''
+            new_slope, new_fit_quality = slope, ''
 
-    return slope, fit_quality, new_slope, new_fit_quality
+        return slope, fit_quality, new_slope, new_fit_quality
+    else:
+        return '', '', '', ''
 
 
 def screener_before(datalist, database_type):
@@ -470,6 +481,142 @@ def moment_volume_after_temp(ID, deformation):
         return '', '', ''
 
 
+def screener_after(datalist):
+    """Second main function used for applying criteria obtained after calculations and performing corresponding checks"""
+
+    min_mag_field = 0.45
+
+    df = pd.read_csv(datalist, index_col=0, sep=',')
+
+    # remove completion status columns that are no longer necessary
+    columns_to_remove = ['a_inc', 'a_dec', 'b_inc', 'b_dec', 'c_inc', 'c_dec', 'undeformed',
+                         'a_inc_fail_reason', 'a_dec_fail_reason', 'b_inc_fail_reason', 'b_dec_fail_reason', 'c_dec_fail_reason', 'c_inc_fail_reason', 'undeformed_fail_reason']
+    df.drop(columns_to_remove, inplace=True, axis=1)
+
+    with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
+        pbar.set_description("Processing datalist")
+        for item in df.index.tolist():
+            pbar.update(1)                              # Updating progress bar at each step
+
+            # Calculating compositional properties
+            number_atoms, rare_content, oxygen_content = composition_analysis(item)
+            # Calculating volumes and moments
+            moment_u, volume_u, magF_u = moment_volume_after(item, 'undeformed')
+
+            # Number of atoms into datalist
+            df.loc[item, 'number_atoms'] = number_atoms
+            # Rare earth content into datalist
+            df.loc[item, 'rare_content'] = rare_content
+            # Oxygen content into datalist
+            df.loc[item, 'oxygen_content'] = oxygen_content
+
+            # Memory used for calculation
+            df.loc[item, 'memory_used'] = memory_used(item)
+            # Time used for calculation
+            df.loc[item, 'time_to_calculate'] = timing(item)
+            # Date calculation was finished on
+            df.loc[item, 'date_complete'] = completion_date(item)
+
+            # Volume after
+            df.loc[item, 'moment_u'] = moment_u
+            # Moment after
+            df.loc[item, 'volume_u'] = volume_u
+            # Mag_field after
+            df.loc[item, 'magF_u'] = abs(magF_u)
+
+            # Get energy
+            df.loc[item, 'energy'] = energy(item, 'undeformed')
+
+            # # Calculate magnetoelastic parameter initial with fit quality and adjusted with fit quality
+            # old way to calculate magneto-elatic parameter
+            # Mel_a, Mel_a_fit, Mel_aa, Mel_aa_fit = magnetoelastic(item, 'a')
+            # Mel_b, Mel_b_fit, Mel_bb, Mel_bb_fit = magnetoelastic(item, 'b')
+            # Mel_c, Mel_c_fit, Mel_cc, Mel_cc_fit = magnetoelastic(item, 'c')
+            # Mel_V, Mel_V_fit, Mel_VV, Mel_VV_fit = magnetoelastic(item, 'V')
+
+            # Calculate magnetoelastic parameter via moments initial with fit quality and adjusted with fit quality
+            Mel_mom_a, Mel_mom_a_fit, Mel_mom_aa, Mel_mom_aa_fit = magnetoelastic_moment(item, 'a')
+            Mel_mom_b, Mel_mom_b_fit, Mel_mom_bb, Mel_mom_bb_fit = magnetoelastic_moment(item, 'b')
+            Mel_mom_c, Mel_mom_c_fit, Mel_mom_cc, Mel_mom_cc_fit = magnetoelastic_moment(item, 'c')
+            Mel_mom_V, Mel_mom_V_fit, Mel_mom_VV, Mel_mom_VV_fit = magnetoelastic_moment(item, 'V')
+
+            #
+            # df.loc[item, 'Mel_a'] = Mel_aa
+            # df.loc[item, 'Mel_b'] = Mel_bb
+            # df.loc[item, 'Mel_c'] = Mel_cc
+            # df.loc[item, 'Mel_a_fit'] = Mel_a_fit
+            # df.loc[item, 'Mel_b_fit'] = Mel_b_fit
+            # df.loc[item, 'Mel_c_fit'] = Mel_c_fit
+
+            df.loc[item, 'Mel_mom_a'] = Mel_mom_aa
+            df.loc[item, 'Mel_mom_b'] = Mel_mom_bb
+            df.loc[item, 'Mel_mom_c'] = Mel_mom_cc
+            df.loc[item, 'Mel_mom_a_fit'] = Mel_mom_a_fit
+            df.loc[item, 'Mel_mom_b_fit'] = Mel_mom_b_fit
+            df.loc[item, 'Mel_mom_c_fit'] = Mel_mom_c_fit
+
+            df.loc[item, 'Mel_mom_V'] = Mel_mom_VV
+            df.loc[item, 'Mel_mom_V_fit'] = Mel_mom_V_fit
+
+
+            if Mel_a == '':
+                Mel_a = 0
+                Mel_aa = 0
+            if Mel_b == '':
+                Mel_b = 0
+                Mel_bb = 0
+            if Mel_c == '':
+                Mel_c = 0
+                Mel_cc = 0
+
+            df.loc[item, 'Mel_full_old'] = math.sqrt((Mel_a**2) + (Mel_b**2) + (Mel_c**2))
+            df.loc[item, 'Mel_full'] = math.sqrt((Mel_aa**2) + (Mel_bb**2) + (Mel_cc**2))
+
+            if Mel_mom_a == '':
+                Mel_mom_a = 0
+                Mel_mom_aa = 0
+            if Mel_mom_b == '':
+                Mel_mom_b = 0
+                Mel_mom_bb = 0
+            if Mel_mom_c == '':
+                Mel_mom_c = 0
+                Mel_mom_cc = 0
+
+            df.loc[item, 'Mel_mom_full_old'] = math.sqrt((Mel_mom_a**2) + (Mel_mom_b**2) + (Mel_mom_c**2))
+            df.loc[item, 'Mel_mom_full'] = math.sqrt((Mel_mom_aa**2) + (Mel_mom_bb**2) + (Mel_mom_cc**2))
+
+
+            # try:
+            #     magF_a = (moment_volume_after_temp(item, 'Applied_Field')[2])
+            #     df.loc[item, 'mafF_a'] = magF_a
+            #     df.loc[item, 'BEXT'] = magF_a/magF_u
+            # except:
+            #     df.loc[item, 'mafF_a'] = ''
+            #     df.loc[item, 'BEXT'] = -5
+
+
+            # OPTIONAL  FOR EXTRA ANALYSIS switch to 'True' to run
+            execute_extra = False
+            if execute_extra:
+                # Get primitive cell parameters determined by vasp for this structure
+                df.loc[item, 'VASP_a_param'] = geometry_after(item, 'undeformed')[0]
+                df.loc[item, 'VASP_b_param'] = geometry_after(item, 'undeformed')[1]
+                df.loc[item, 'VASP_c_param'] = geometry_after(item, 'undeformed')[2]
+
+                df.loc[item, 'a_inc_m'] = moment_volume_after(item, 'a_inc')[0]
+                df.loc[item, 'a_dec_m'] = moment_volume_after(item, 'a_dec')[0]
+                df.loc[item, 'b_inc_m'] = moment_volume_after(item, 'b_inc')[0]
+                df.loc[item, 'b_dec_m'] = moment_volume_after(item, 'b_dec')[0]
+                df.loc[item, 'c_inc_m'] = moment_volume_after(item, 'c_inc')[0]
+                df.loc[item, 'c_dec_m'] = moment_volume_after(item, 'c_dec')[0]
+
+                # Get algorithm step at which optimization stopped
+                df.loc[item, 'step'] = archive_reader(item, 'undeformed')
+            ##############################
+
+    df.to_csv(datalist.replace(".csv", '_out' + '.csv'))
+
+
 def do_datalist(datalist):
     """A small instance of screener, just to apply some parameter to the chosen datalist"""
 
@@ -511,6 +658,7 @@ def sieve_temp01(datalist):
                     'b_inc_fail_reason']
 
         line = 'run failed, set accuracy not reached: dE is'
+
 
         for item in df.index.tolist():
             pbar.update(1)                              # Updating progress bar at each step
@@ -560,116 +708,6 @@ def sieve_temp02(datalist):
     df2.to_csv(datalist.replace(".csv", '_accuracy.csv'))
     df.to_csv(datalist.replace(".csv", "_except_accuracy.csv"))
 
-
-def OUTCAR_reader(ID='', folder=''):
-    """A universdal function to get the whole content of the OUTCAR file for certain ID
-    Speeds up the screening process, but lacks flexibility of separate functions
-    If folder is specified will look at all deformations for that single folder"""
-
-    if folder == '':
-        path_to_data = vasp_results_dir + '/' + str(ID)
-    else:
-        path_to_data = folder
-
-    moment_lines = []
-    energy_lines = []
-
-    def_list = ['undeformed', 'a_dec', 'a_inc', 'b_dec', 'b_inc', 'c_dec', 'c_inc']
-
-    deformations = os.listdir(path_to_data)
-
-    dd = pd.DataFrame(0, index=def_list, dtype='float', columns=['time_spent', 'date_complete', 'memory', 'volume', 'moment', 'symmetry', 'tot_energy'])
-    dd[['date_complete', 'symmetry']] = dd[['date_complete', 'symmetry']].astype('str')
-
-    for deformation in deformations:
-        with open(path_to_data + '/' + deformation + "/OUTCAR") as search:
-            for line in search:
-
-                if 'User time' in line:
-                    dd.at[deformation, 'time_spent'] = (float(line.split()[-1]))/60
-
-                if 'executed on' in line:
-                    dd.loc[deformation, 'date_complete'] = time.strftime('%Y-%m-%d', (time.strptime((line.split()[-2]), "%Y.%m.%d")))
-
-                if 'Maximum memory used' in line:
-                    dd.at[deformation, 'memory'] = (float(line.split()[-1]))
-
-                if 'volume of cell' in line:
-                    dd.at[deformation, 'volume'] = (float(line.split()[-1]))
-
-                if 'Routine SETGRP: Setting up the symmetry group for a' in line:
-                    dd.loc[deformation, 'symmetry'] = (next(search)).strip("\n").split()[1]
-
-                if 'tot' in line:
-                    moment_lines.append(line)
-
-                if 'free  energy   TOTEN' in line:
-                    energy_lines.append(line)
-
-        dd.at[deformation, 'moment'] = float(moment_lines[-2].split()[-1])
-        dd.at[deformation, 'tot_energy'] = round(float(energy_lines[-1].split()[-2]), 4)
-
-
-    # time_spent = round(time_spent / 60)
-    # date = time.strftime('%Y-%m-%d', max(dates))
-    # memory = round(memory * 9.5367432e-7, 2)  # converting kb to Gb and rounding
-    return dd
-
-
-def screener_after(datalist):
-    """Second main function used for applying criteria obtained after calculations and performing corresponding checks"""
-    df = pd.read_csv(datalist, index_col=0, sep=',')
-
-    columns_to_remove = ['a_inc', 'a_dec', 'b_inc', 'b_dec', 'c_inc', 'c_dec', 'undeformed',
-                         'a_inc_fail_reason', 'a_dec_fail_reason', 'b_inc_fail_reason', 'b_dec_fail_reason', 'c_dec_fail_reason', 'c_inc_fail_reason', 'undeformed_fail_reason']
-    for i in columns_to_remove:
-        try:
-            df.drop(columns_to_remove, inplace=True, axis=1)
-        except:
-            pass
-
-    with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
-        pbar.set_description("Processing datalist")
-        for item in df.index.tolist():
-            pbar.update(1)                              # Updating progress bar at each step
-            OUTCAR_results = OUTCAR_reader(item)
-
-            number_atoms, rare_content, oxygen_content = composition_analysis(item)
-
-            df.at[item, 'number_atoms'] = number_atoms
-            # Rare earth content into datalist
-            df.at[item, 'rare_content'] = rare_content
-            # Oxygen content into datalist
-            df.at[item, 'oxygen_content'] = oxygen_content
-
-            # Memory used for calculation
-            df.at[item, 'memory_used'] = round(OUTCAR_results['memory'].sum() * 9.5367432e-7, 2)
-            # Time used for calculation
-            df.at[item, 'time_to_calculate'] = round(OUTCAR_results['time_spent'].sum() / 60, 2)
-            # Date calculation was finished on
-            df.at[item, 'date_complete'] = OUTCAR_results['date_complete'].sort_values()[-1]
-            # Total Energy
-            df.at[item, 'energy'] = OUTCAR_results.at['undeformed', 'tot_energy']
-
-            # Volume after
-            df.at[item, 'moment_u'] = OUTCAR_results.at['undeformed', 'moment']
-            # Moment after
-            df.at[item, 'volume_u'] = OUTCAR_results.at['undeformed', 'volume']
-            # Mag_field after
-            df.at[item, 'magF_u'] = abs(calculate_mag_field(OUTCAR_results.at['undeformed', 'moment'], OUTCAR_results.at['undeformed', 'volume']))
-
-            # Magneto Elastic parameter for all axes
-            df.at[item, 'Mel_a'] = magnetoelastic_moment(OUTCAR_results.at['a_dec', 'moment'], OUTCAR_results.at['undeformed', 'moment'], OUTCAR_results.at['a_inc', 'moment'])[2]
-            df.at[item, 'Mel_b'] = magnetoelastic_moment(OUTCAR_results.at['b_dec', 'moment'], OUTCAR_results.at['undeformed', 'moment'], OUTCAR_results.at['b_inc', 'moment'])[2]
-            df.at[item, 'Mel_c'] = magnetoelastic_moment(OUTCAR_results.at['c_dec', 'moment'], OUTCAR_results.at['undeformed', 'moment'], OUTCAR_results.at['c_inc', 'moment'])[2]
-
-            df.at[item, 'Mel_V'] = magnetoelastic_moment(OUTCAR_results.at['V_dec', 'moment'], OUTCAR_results.at['undeformed', 'moment'], OUTCAR_results.at['V_inc', 'moment'])[2]
-
-        # Total Magneto Elastic parameter
-        df['Mel_full'] = (df['Mel_a'] ** 2 + df['Mel_b'] ** 2 + df['Mel_c'] ** 2) ** 0.5
-
-    df.to_csv(datalist.replace(".csv", '_out' + '.csv'))
-
 # ------------------------------------------------------------------------------------------------------- #
 #  _____                                           _       _____ _             _     _   _                #
 # /  __ \                                         | |     /  ___| |           | |   | | | |               #
@@ -684,23 +722,39 @@ def screener_after(datalist):
 # wdatadir_structure = '../Database/aflow/datadir_structure_relaxed/'
 # wdatalist = '../Database/aflow/datalist_updated_sieved.mag.field_sieved.mag.sites.csv'
 
+# vasp_results_dir = 'D:/MCES/MP/batch1/outdir'
 
 wdatadir_structure = 'D:/MCES/MP/datadir/'
 wdatalist = 'D:/MCES/MP/step4_success_sieved.csv'
 
-outdir = 'D:/MCES/MP/outdir_VVV'
+# datalist = 'X:/MCES/Aflow/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_out.csv'
+outdir = 'D:/MCES/MP/outdir'
+# outdir = ('MnAs_o')
+# wdatadir_structure = 'datadir/'
 vasp_results_dir = outdir
 vasp_results_BEXT = 'D:/MCES/MP/outdir_BEXT_1/out'
 # screener_before('X:/MCES/MP/step2.csv', 'MP')
 
+# sieve_temp02(wdatalist)
 
-# screener_after('step4_success_sieved.csv')
-screener_after('D:/MCES/MP/V_beforeRun_afterRun_success_sieved.csv')
+# print(calculate_mag_field(16.1092, 107.51))
 
-# desired_width = 320
-# pd.set_option("display.max_rows", None, "display.max_columns", None)
-# pd.set_option('display.width', desired_width)
-# pd.set_option('display.max_columns', 10)
+# sieve_temp01('X:/MCES/MP/initial attempt - apparently wrong data from MRESTER or they had an update/outdir/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_complete.csv')
 
-# print(moment_volume_after('mp-778', 'a_inc'))
-# something is wrong with this one, also I don't trust deformations again are they done rightly????
+# screener_after('X:/MCES/MP/initial attempt - apparently wrong data from MRESTER or they had an update/outdir/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_complete_no_problem.csv')
+
+
+# screener_after(wdatalist)
+
+# sieve('D:/MCES/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRun_afterRun_success_sieved_out.csv', 'magF_u', 0.45)
+
+# magnetoelastic_max('mp-1200', 'a', plot=True)
+
+# sieve_temp01('D:/MCES//MP/step3_failed_sieved_accuracy.csv')
+# do_datalist('D:/MCES//MP/step3_failed_sieved_accuracy_dE.csv')
+# duplicates('C:/Users/vikva/YandexDisk/Work/PycharmProjects/MCEScreening/Displayer/step3_success_sieved_out_and_extra.csv')
+# rare_earth_content('mp-1208661')
+screener_after('step4_success_sieved.csv')
+# do_datalist('C:/Users/vikva/YandexDisk/Work/PycharmProjects/MCEScreening/Displayer/step4_success_sieved_out.csv')
+
+# print(calculate_mag_field(9.288, 184.50))
