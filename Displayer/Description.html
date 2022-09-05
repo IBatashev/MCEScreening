@@ -3,7 +3,7 @@ h1 {
     margin: 1em 0 0 0;
     color: #2e484c;
     font-family: 'Julius Sans One', sans-serif;
-    font-size: 1.8em;
+    font-size: 1.2em;
 }
 
 body {
@@ -11,29 +11,304 @@ body {
     text-align: justify;
     text-justify: inter-word;
     width: 80%;
-    font-size: 1em;
+    font-size: 0.8em;
     max-width: 1400;
 }
+p {
+    font: "Libre Baskerville", sans-serif;
+    text-align: justify;
+    text-justify: inter-word;
+    color: #808080;
+    font-size: 1.0em;
+}
+
+sec {
+    font: "Libre Baskerville", sans-serif;
+    text-align: justify;
+    text-justify: inter-word;
+    color: #ffffff;
+    font-size: 0.5em;
+}
+
 
 </style>
-
-
+<p><i>version 1.3</i></p>
 <body>
-    Use menu to higlight specific compounds.<br>
-    Elements must be separated by comma and start with upper case letter. Once typed in, press Enter.<br>
+<p>
+	This guide describes all interactive elements and controls.
+	Descriptions are grouped in several sections according to element utility.
+	For the physical meaning behind each parameter see info.pdf.
+</p>
+<hr>
+<p>
+	<strong>SETTINGS</strong>
+</p>
+<hr>
+<p>
+	<strong>Database file: </strong>
+    select data source for the plot. These files must be *.csv located in the
+	same directory as MCES.exe. Currently, two files are available:
     <br>
-    To view deatils of non-highlighted compounds enable the second "Hower" tool.<br>
+	- Full_DB - contains all successfully calculated materials from the Materials
+	project database that suit initial conditions
     <br>
-    Use "Reset" tool to normalize axis values after zooming or switching axis.<br>
-    <br>
-    Use selection tools ("Lasso", "Tap", "Box") to see more details in the table below.<br>
-    Hold down Shift to append to selection. Pres Esc to cancel selection.<br>
-    Non-highlighted compounds cannot be selected.<br>
-    <br>
-    Use "Save" tool to export the plot as a .png image.<br>
-    <br>
-    Press "Save Table" button to export the table as a .csv file.<br>
-    <br>
-    Press "STOP" before closing browser window to kill the app.<br>
-</body>
+	- Top_candidates - a subset of Full_DB that comes from applying additional
+	sieving criteria.
+</p>
+<p>
+	<strong>X-Axis: </strong>
+	chose <em>x</em>-axis for the plot.
+</p>
+<p>
+	<strong>Y-Axis: </strong>
+chose <em>y</em>-axis for the plot.
+</p>
+<hr>
+<p>
+	<strong>CONDITIONS</strong>
+</p>
+<hr>
+<p>
+	The final list of conditions follows AND logic, so only database entries
+	that satisfy all chosen conditions simultaneously will be highlighted.
+</p>
+<p>
+	For condition boxes where text can be typed in, to submit your input press
+	'Enter' on the keyboard or mouse click outside the textbox.
+</p>
+<p>
+    Clicking on the green "Export Data" button will produce a data_result.csv file.
+    This file contains detailed information for all compounds that fit current choice of conditions.
+</p>
+<p>
+	<strong>Database ID: </strong>
+	Label used by Materials Project.
+    Input any number of ids separated by a comma.
+	Case sensitive. Internal logic is OR.
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;Example input: <em>mp-778, mp-238</em>
+</p>
+<p>
+	<strong>Compound:</strong>
+	Chemical formula of the material. Input one or several separated by a
+	comma.<strong> </strong>Case sensitive. Internal logic is OR. Must be an
+	exact match to the compound(s) in the database (e.g FeB is not the same as
+	BFe or Fe2B2) so it may be necessary to try some permutations of the
+	chemical formula or to use the "Contains Element(s)" condition instead.
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;Example input: <em>Fe2P, MnPd</em>
+</p>
+<p>
+	<strong>Contains Element(s): </strong>
+	<u>All</u>
+	elements that <u>must be present</u> in the composition. Internal logic is
+	AND. Input one or several separated by a comma. Case sensitive. The order
+	of the elements is irrelevant.
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;Example input: <em>Fe, Mn, P</em>
+</p>
+<p>
+	<strong>Does not contain Element(s): </strong>
+	All elements that are not allowed in the composition. Internal logic is
+	AND. Input one or several separated by a comma. Case sensitive. The order
+	of the elements is irrelevant.
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;Example input: <em>O, B</em>
+</p>
+<p>
+	<strong>Maximum allowed price (EUR/kg): </strong>
+	Price of the material that must not be exceeded. Input a number. By
+	default, the application will start with the maximum price found among all
+	the database entries.
+</p>
+<p>
+	&nbsp;&nbsp;&nbsp;&nbsp;Example input: <em>2000</em>
+</p>
+<p>
+	<strong>Lattice type(s): </strong>
+	Seven checkboxes, one for each symmetry type. Select one or more to limit
+	the search only to selected symmetries. Internal logic is OR (e.g., by
+	checking 'cubic' and 'hexagonal' only systems with these two lattice types
+	will be selected). No selection is the same as selecting all options.
+</p>
+<p>
+	<strong>Magneto Elastic Full Uniaxial: </strong>
+	Minimum allowed value of the magneto elastic uniaxial parameter. Set
+	desired value with a slider.
+</p>
+<p>
+	<strong>Magneto Elastic Volumetric: </strong>
+	Minimum allowed value of the magneto elastic volumetric parameter. Set
+	desired value with a slider.
+</p>
+<p>
+	<strong>
+		Internal Field:
+	</strong>
+	Minimum allowed value of internal field parameter. Set desired value with a
+	slider.
+</p>
+<p>
+	<strong>
+		Applied Field Response:
+	</strong>
+	Minimum allowed value of applied field response parameter. Set desired value with a
+	slider.
+</p>
+<p>
+	<strong>Magnetically active atoms %: </strong>
+	Minimum allowed percentage of magnetically active atoms in the composition.
+	Set desired value with a slider.
+</p>
+<p>
+	<strong>Rare Elements allowed %: </strong>
+	Maximum allowed percentage of the rare earth elements in the composition.
+	Set desired value with a slider.
+</p>
+<p>
+	<strong>
+		WARNING: Not all compounds have data for volumetric magneto elastic
+		parameter or applied field response. When this information is
+		unavailable, values in question default to 0.0. Therefore, any
+		filtering with these parameters should be done with care.
+	</strong>
+</p>
+<hr>
+<p>
+	<strong>PLOT </strong>
+</p>
+<hr>
+<p>
+	The plot area is populated by database items.
+</p>
+<p>
+	Above the plot, the number of items that satisfy currently selected
+	conditions is displayed.
+</p>
+<p>
+	Orange data points represent items that satisfy currently selected
+	conditions.
+</p>
+<p>
+	Black data points represent items that do not satisfy currently selected
+	conditions.
+</p>
+<p>
+	Moving the cursor over the plot creates a crosshair.
+</p>
+<p>
+	If the hover tool is enabled (see description below) moving over a data
+	point will produce a tooltip with some basic information about the
+	datapoint (compound, symmetry, full uniaxial magneto elastic parameter,
+	volumetric magneto elastic parameter, internal field, applied field
+	response).
+</p>
+<p>
+	Several selection tools can be used (see below) to pick data points. The
+	default one is Tap. After selecting a data point all other data points will
+	become semi-transparent. To discard selection, click anywhere in the plot
+	area without datapoints. Selected data points are added to the table below
+	the plot area which contains additional information about the material. See
+	TABLE section for more details.
+</p>
+<p>
+	This 'selection' does not affect what is exported to the file when the
+	'Export data' button is pressed, it is used purely to populate the table
+	below the plot area.
+</p>
+<p>
+	Immediately to the right of the plot area are additional tools to interact
+	with the plot. Tools can be enabled and disabled with a mouse click.
+	Enabled tools have a blue line next to them.
+    <br>List of tools from top to bottom:
+</p>
+<p>
+	<strong>Pan</strong>
+	- move plot area by clicking and dragging. Initial state - enabled.
+</p>
+<p>
+	<strong>Lasso Select</strong>
+	- draw arbitrary shape inside plot area, all data points within will be
+	selected. Initial state - disabled.
+</p>
+<p>
+	<strong>Box Zoom</strong>
+	- draw a rectangle inside the plot area, the plot will be zoomed in to this
+	rectangle. Initial state - disabled.
+</p>
+<p>
+	<strong>Box Select</strong>
+	- draw a rectangle inside the plot area, all data points within will be
+	selected. Initial state - disabled.
+</p>
+<p>
+	<strong>Wheel Zoom </strong>
+	- allows zooming in and out by hovering the mouse pointer over the plot
+	area and rotating the mouse wheel. Zoom location is determined by the
+	position of the cursor. Initial state - enabled.
+</p>
+<p>
+	<strong>Tap - </strong>
+	when enabled clicking on the datapoint will select it. Several data points
+	can be selected if 'SHIFT' button is held down on the keyboard during mouse
+	click. Initial state - enabled.
+</p>
+<p>
+	<strong>Reset - </strong>
+	on click normalizes axis values (to use after zooming or switching axis).
+</p>
+<p>
+	<strong>Hover -</strong>
+	first hover tool when enabled shows tooltip for black data points. Initial
+	state - disabled.
+</p>
+<p>
+	<strong>Hover -</strong>
+	second hover tool when enabled shows tooltip for orange data points.
+	Initial state - enabled.
+</p>
+<hr>
+<p>
+	<strong>TABLE</strong>
+</p>
+<hr>
+<p>
+	Information on selected data points is automatically displayed in a table
+	below the plot. This table has a pre-determined set of headers to give only
+	the most useful information about compounds. Additional information is
+	available in a .csv file that can be exported via the 'Export Data' button.
+</p>
+<p>
+	Click on any header to sort the whole table according to it. The first
+	click results in numerically/alphabetically increasing ordering, the second
+	- decreasing. The width of the table columns can be adjusted.
+</p>
 
+
+
+<script type="text/javascript" src='function Egg(){this.eggs=[],this.hooks=[],this.kps=[],this.activeEgg="",this.ignoredKeys=[16],arguments.length&&this.AddCode.apply(this,arguments)}Egg.prototype.__execute=function(a){return"function"==typeof a&&a.call(this)},Egg.prototype.__toCharCodes=function(a){var b={up:38,down:40,left:37,right:39,enter:13,space:32,ctrl:17,alt:18,tab:9,esc:27},c=Object.keys(b);"string"==typeof a&&(a=a.split(",").map(function(a){return a.trim()}));var d=a.map(function(a){return a===parseInt(a,10)?a:c.indexOf(a)>-1?b[a]:a.charCodeAt(0)});return d.join(",")},Egg.prototype.AddCode=function(a,b,c){return this.eggs.push({keys:this.__toCharCodes(a),fn:b,metadata:c}),this},Egg.prototype.AddHook=function(a){return this.hooks.push(a),this},Egg.prototype.handleEvent=function(a){var b=a.which,c=b>=65&&90>=b;if(!("keydown"!==a.type||a.metaKey||a.ctrlKey||a.altKey||a.shiftKey)){var d=a.target.tagName;if(("HTML"===d||"BODY"===d)&&c)return void a.preventDefault()}"keyup"===a.type&&this.eggs.length>0&&(c&&(a.shiftKey||(b+=32)),-1===this.ignoredKeys.indexOf(b)&&this.kps.push(b),this.eggs.forEach(function(a,b){var c=this.kps.toString().indexOf(a.keys)>=0;c&&(this.kps=[],this.activeEgg=a,this.__execute(a.fn,this),this.hooks.forEach(this.__execute,this),this.activeEgg="")},this))},Egg.prototype.Listen=function(){return void 0!==document.addEventListener&&(document.addEventListener("keydown",this,!1),document.addEventListener("keyup",this,!1)),this},Egg.prototype.listen=Egg.prototype.Listen,Egg.prototype.addCode=Egg.prototype.AddCode,Egg.prototype.addHook=Egg.prototype.AddHook;'></script>
+
+</body>
+<br>
+<br>
+<br>
+<sec>
+	<pre>
+  You found a cat in a box!
+.............................
+.                           .
+.        /\_____/\          .
+.       /  0   0  \         .
+.      ( ==  ^  == ) ( )    .
+.       )         (   ( )   .
+.      (           ) ( )    .
+.     ( (  )   (  ) )()     .
+.    (__(__)___(__)__)      .
+.                           .
+.............................
+	</pre>
+</sec>

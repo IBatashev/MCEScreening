@@ -49,7 +49,7 @@ def writer(out_path, poscar_info, at_type_list, calculation_type, moments, EDIFF
     incar.write("ENCUT = " + str(encut) + " \n")
     incar.write("MAGMOM = " + magmom + " \n")
     if calculation_type == 'Applied_Field':
-        incar.write("BEXT = -0.01 \n")
+        incar.write("BEXT = -0.05 \n")
     if EDIFF_scaling == True:
         incar.write("EDIFF = " + str(EDIFF) + " \n")
     else:
@@ -99,5 +99,5 @@ def writer_second(out_path, poscar_info, at_type_list, deformation):
     )
     if deformation == 'BEXT':
         incar.write(
-            "BEXT = -0.01 \n"  # uncomment for applied filed
+            "BEXT = -0.05 \n"  # uncomment for applied filed
         )

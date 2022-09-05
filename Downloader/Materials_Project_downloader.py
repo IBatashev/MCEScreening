@@ -21,7 +21,7 @@ def chose_ids_to_download():
     #  Does not contain any of these                                        because:
     banlist = ["Re", "Os", "Ir", "Pt", "Au", "In", "Tc",                    # Expensive or Limited in supply
                "Be", "As", "Cd", "Ba", "Hg", "Tl", "Pb", "Ac",              # Health Hazard
-               "Cs", "Pa", "Np", "U", "Pu", "Th",                           # Radioactive
+               "Cs", "Po", "Np", "U", "Pu", "Th",                           # Radioactive
                "He", "Ne", "Ar", "Kr", "Xe"]                                # Noble gases
 
     data = m.query(criteria={"elements": {"$in": ["Mn", "Fe", "Co", "Ni", "Cr"],
@@ -139,6 +139,7 @@ def lattice_type_fix(datalist, datadir):
 
     prec = 0.1
     angle_prec = 5.0
+    count_hex = 0
 
     df = pd.read_csv(datalist, index_col=0, sep=',')
     with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
@@ -159,7 +160,11 @@ def lattice_type_fix(datalist, datadir):
                     df.loc[item, 'lattice_system'] = 'rhombohedral'
                 else:
                     df.loc[item, 'lattice_system'] = 'hexagonal'
+                    count_hex = count_hex +1
+                    print(item)
+
         df.to_csv(datalist.replace(".csv", '_lattfix' + '.csv'))
+        print(count_hex)
 
 
 def id_download(id):
@@ -246,8 +251,8 @@ def download_custom(file_with_ids_to_download):
 #                                                                                                         #
 # ------------------------------------------------------------------------------------------------------- #
 
-wdatadir = 'datadir/'
-wdatalist = 'datalist.csv'
+# wdatadir = 'datadir/'
+# wdatalist = 'datalist.csv'
 
 # # Routine:
 # # step 1:
@@ -262,3 +267,6 @@ wdatalist = 'datalist.csv'
 # download_custom('ids')
 # download('ids')
 # id_download('mp-778')
+wdatadir_structure = 'D:/MCES/COD/datadir/'
+wdatalist = 'D:/MCES/COD/step0.csv'
+lattice_type_fix(wdatalist, wdatadir_structure)

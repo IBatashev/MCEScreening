@@ -62,7 +62,7 @@ def first_scan(pathlist):
                     necessary = ["Mn", "Fe", "Co", "Ni", "Cu"] # at least one of these must be present
                     banlist = ["Re", "Os", "Ir", "Pt", "Au", "In", "Tc",  # Expensive or Limited in supply
                                "Be", "As", "Cd", "Ba", "Hg", "Tl", "Pb", "Ac",  # Health Hazard
-                               "Cs", "Pa", "Np", "U", "Pu", "Th",  # Radioactive
+                               "Cs", "Po", "Np", "U", "Pu", "Th",  # Radioactive
                                "He", "Ne", "Ar", "Kr", "Xe"]  # Noble gases
 
                     necessary_match = [i for i in necessary if i in elemets]

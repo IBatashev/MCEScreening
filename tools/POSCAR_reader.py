@@ -17,9 +17,15 @@ def read(structure_file):
         #parser = CifParser(structure_file)                  # create structure from .cif using pymatgen
         #structure = parser.get_structures()[0]              #
         mystructure = Structure.from_file(structure_file)
-        p_content = Poscar(mystructure)                       # create poscar from structure
-        p = str(p_content).split('\n')                      # These two lines are to remodel poscar_content to the same
-        poscar_content = [string + '\n' for string in p]    # data format we get from aflow - a list of strings
+        # trying to deal with partial occupancies:
+
+        if mystructure.is_ordered:
+            p_content = Poscar(mystructure)                       # create poscar from structure
+            p = str(p_content).split('\n')                      # These two lines are to remodel poscar_content to the same
+            poscar_content = [string + '\n' for string in p]    # data format we get from aflow - a list of strings
+        else:
+            print('disordered structure')
+
 
     else:
         with open(structure_file) as f:

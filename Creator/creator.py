@@ -1,210 +1,301 @@
 import os
-import numpy as np
-
-from ase import geometry
-import argparse
 import shutil
 import pandas as pd
 import tqdm
-import pymatgen
-from pymatgen.transformations import standard_transformations  as transform
+from pymatgen.core import Lattice
 from pymatgen.io.vasp import Poscar
 import warnings
-import INCAR_maker
-import POSCAR_maker
-import POSCAR_reader
-import POTCAR_maker
-# from tools import POSCAR_reader
+from Creator import INCAR_maker
+from Creator import POSCAR_maker
+from Creator import POTCAR_maker
+from Tools import POSCAR_reader
+from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+
+# Placeholders for global variables
+elem_list = ''
+path = ''
+poscar_content = ''
+magmoms = ''
 
 
-def single_run(def_type, deformation_list):
+def single_run(calc_type, updated_lattice):
     """Creates files for a single VASP run"""
 
-    path_to_calc = path + def_type + "/"
+    path_to_calc = path + calc_type + "/"
     os.mkdir(path_to_calc)
-    POSCAR_maker.writer(path_to_calc, poscar_content, deformation_list)
-    INCAR_maker.writer_second(path_to_calc, poscar_content, elem_list, def_type)
+    POSCAR_maker.writer_MP(path_to_calc, poscar_content, updated_lattice)
+    # POSCAR_maker.structure_corrector_MP(path_to_calc)
+    INCAR_maker.writer(path_to_calc, poscar_content, elem_list, calc_type, magmoms)
     POTCAR_maker.writer(path_to_calc, elem_list)
 
 
-def undeformed_lattice():
+def undeformed_lattice(a, b, c, alpha, beta, gamma):
     """Creates all necessary files to run a VASP job for initial undeformed structure"""
 
-    deformation_type = "undeformed"
-    deformation = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
-    single_run(deformation_type, deformation)
+    calculation_type = "undeformed"
+    new_lattice = Lattice.from_parameters(a, b, c, alpha, beta, gamma)
+    single_run(calculation_type, new_lattice)
 
 
-def applied_field():
-    """Creates all necessary files to run a VASP job for structure under applied field (value of the field set in INCAR_maker)"""
+def applied_field(a, b, c, alpha, beta, gamma):
+    """Creates all necessary files to run a VASP job for structure
+    under applied field (value of the field is set in INCAR_maker)"""
 
-    deformation_type = "BEXT"
-    deformation = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
-    single_run(deformation_type, deformation)
+    calculation_type = "Applied_Field"
+    new_lattice = Lattice.from_parameters(a, b, c, alpha, beta, gamma)
+    single_run(calculation_type, new_lattice)
 
 
-def deformed_lattice(lattice_type, n):
+def volumetric_deformation(n, a, b, c, alpha, beta, gamma):
+    """Takes lattice parameters and scales all of them by deformation factor
+    Prepares both compressed and expanded structures"""
+    V_inc = 'V_' + str(1+n)
+    V_dec = 'V_' + str(1-n)
+    deformation_types = [V_dec, V_inc]
+
+    for deformation_type in deformation_types:
+        if deformation_type == V_dec:
+            new_lattice = Lattice.from_parameters(a, b, c, alpha, beta, gamma)
+            volume_before = new_lattice.volume
+            new_lattice = new_lattice.scale((1 - n) * volume_before)
+            single_run(deformation_type, new_lattice)
+
+        if deformation_type == V_inc:
+            new_lattice = Lattice.from_parameters(a, b, c, alpha, beta, gamma)
+            volume_before = new_lattice.volume
+            new_lattice = new_lattice.scale((1 + n) * volume_before)
+            single_run(deformation_type, new_lattice)
+
+
+def uniaxial_defromations(lattice_type, n, a, b, c, alpha, beta, gamma):
     """Takes lattice type as argument and depending on symmetry creates all necessary files to run VASP jobs for all
     possible independent deformations.
     Depending on symmetry create a 3x3 deformation matrix which determines weather a, b, c are deformed. This matrix is
     later passed to POSCAR_maker where it is used for adjusting the lattice matrix.
     Deformations are done both for increase and decrease of each lattice parameter.
     """
+    # deformation factor 0.05 == 5%, deformation is done both for expansion and contraction.
 
-    # "CUB"     1 Simple cubic
-    # "FCC"     2 Face centered cubic
-    # "BCC"     3 Body centered cubic
-    # "HEX"     4 Hexagonal close packed
-    # "TET"     5 Simple tetragonal
-    # "BCT"     6 Body centered tetragonal
-    # "RHL"     7 Rhombohedral
-    # "ORC"     8 Simple orthogonal
-    # "ORCC"    9 Base centered orthorhombic
-    # "ORCI"    10 Body centered orthorhombic
-    # "ORCF"    11 Face centered orthorhombic
-    # "MCL"     12 Simple monoclinic
-    # "MCLC"    13 Base centered monoclinic
-    # "TRI"     14 Triclinic
+    # creating names for deformations:
+    a_inc = 'a_' + str(1+n)
+    a_dec = 'a_' + str(1-n)
+    b_inc = 'b_' + str(1+n)
+    b_dec = 'b_' + str(1-n)
+    c_inc = 'c_' + str(1+n)
+    c_dec = 'c_' + str(1-n)
 
     if lattice_type == "cubic":
-        deformation_types = ['a_dec', 'a_inc']
+        deformation_types = [a_dec, a_inc]
         for deformation_type in deformation_types:
-            if deformation_type == "a_dec":
-                deformation_matrix = np.array([[1-n, 1-n, 1-n], [1-n, 1-n, 1-n], [1-n, 1-n, 1-n]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "a_inc":
-                deformation_matrix = np.array([[1+n, 1+n, 1+n], [1+n, 1+n, 1+n], [1+n, 1+n, 1+n]])
-                single_run(deformation_type, deformation_matrix)
+            if deformation_type == a_dec:
+                a_d = a * pow((1 - n), (1/3))
+                b_d = b * pow((1 - n), (1/3))
+                c_d = c * pow((1 - n), (1/3))
+                new_lattice = Lattice.from_parameters(a_d, b_d, c_d, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == a_inc:
+                a_i = a * pow((1 + n), (1/3))
+                b_i = b * pow((1 + n), (1/3))
+                c_i = c * pow((1 + n), (1/3))
+                new_lattice = Lattice.from_parameters(a_i, b_i, c_i, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
 
     elif lattice_type == "hexagonal":
-        deformation_types = ['a_dec', 'c_dec', 'a_inc', 'c_inc']
+        deformation_types = [a_dec, a_inc, c_inc, c_dec]
         for deformation_type in deformation_types:
-            if deformation_type == "a_dec":
-                deformation_matrix = np.array([[1-n, 1-n, 0], [1-n, 1-n, 0], [0, 0, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_dec":
-                deformation_matrix = np.array([[1, 1, 0], [1, 1, 0], [0, 0, 1-n]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "a_inc":
-                deformation_matrix = np.array([[1+n, 1+n, 0], [1+n, 1+n, 0], [0, 0, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_inc":
-                deformation_matrix = np.array([[1, 1, 0], [1, 1, 0], [0, 0, 1+n]])
-                single_run(deformation_type, deformation_matrix)
+            if deformation_type == a_dec:
+                a_d = a * pow((1 - n), (1/2))
+                b_d = b * pow((1 - n), (1/2))
+                new_lattice = Lattice.from_parameters(a_d, b_d, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_dec:
+                c_d = c * (1 - n)
+                new_lattice = Lattice.from_parameters(a, b, c_d, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == a_inc:
+                a_i = a * pow((1 + n), (1/2))
+                b_i = b * pow((1 + n), (1/2))
+                new_lattice = Lattice.from_parameters(a_i, b_i, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_inc:
+                c_i = c * (1 + n)
+                new_lattice = Lattice.from_parameters(a, b, c_i, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
 
-    elif lattice_type == "rhombohedral" or lattice_type == "trigonal":
-        # Stil confused by how aflow describes rhombohedral lattice BUT for RHL we always have a=b=c so we just need to
-        # steach everything once (see cubic) and we should be good.
-        deformation_types = ['a_dec', 'a_inc']
+    elif lattice_type == "rhombohedral":
+        deformation_types = [a_dec, a_inc]
         for deformation_type in deformation_types:
-            if deformation_type == "a_dec":
-                deformation_matrix = np.array([[1-n, 1-n, 1-n], [1-n, 1-n, 1-n], [1-n, 1-n, 1-n]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "a_inc":
-                deformation_matrix = np.array([[1+n, 1+n, 1+n], [1+n, 1+n, 1+n], [1+n, 1+n, 1+n]])
-                single_run(deformation_type, deformation_matrix)
+            if deformation_type == a_dec:
+                a_d = a * pow((1 - n), (1/3))
+                b_d = b * pow((1 - n), (1/3))
+                c_d = c * pow((1 - n), (1/3))
+                new_lattice = Lattice.from_parameters(a_d, b_d, c_d, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == a_inc:
+                a_i = a * pow((1 + n), (1/3))
+                b_i = b * pow((1 + n), (1/3))
+                c_i = c * pow((1 + n), (1/3))
+                new_lattice = Lattice.from_parameters(a_i, b_i, c_i, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
 
     elif lattice_type == "tetragonal":
-        deformation_types = ['a_dec', 'c_dec', 'a_inc', 'c_inc']
+        deformation_types = [a_dec, a_inc, c_inc, c_dec]
         for deformation_type in deformation_types:
-            if deformation_type == "a_dec":
-                deformation_matrix = np.array([[1-n, 1-n, 1], [1-n, 1-n, 1], [1-n, 1-n, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_dec":
-                deformation_matrix = np.array([[1, 1, 1-n], [1, 1, 1-n], [1, 1, 1-n]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "a_inc":
-                deformation_matrix = np.array([[1+n, 1+n, 1], [1+n, 1+n, 1], [1+n, 1+n, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_inc":
-                deformation_matrix = np.array([[1, 1, 1+n], [1, 1, 1+n], [1, 1, 1+n]])
-                single_run(deformation_type, deformation_matrix)
+            if deformation_type == a_dec:
+                a_d = a * pow((1 - n), (1/2))
+                b_d = b * pow((1 - n), (1/2))
+                new_lattice = Lattice.from_parameters(a_d, b_d, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_dec:
+                c_d = c * (1 - n)
+                new_lattice = Lattice.from_parameters(a, b, c_d, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == a_inc:
+                a_i = a * pow((1 + n), (1/2))
+                b_i = b * pow((1 + n), (1/2))
+                new_lattice = Lattice.from_parameters(a_i, b_i, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_inc:
+                c_i = c * (1 + n)
+                new_lattice = Lattice.from_parameters(a, b, c_i, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
 
     elif lattice_type == "orthorhombic":
-        deformation_types = ['a_dec', 'b_dec', 'c_dec', 'a_inc', 'b_inc', 'c_inc']
+        deformation_types = [a_dec, b_dec, c_dec, a_inc, b_inc, c_inc]
         for deformation_type in deformation_types:
-            if deformation_type == "a_dec":
-                deformation_matrix = np.array([[1-n, 1, 1], [1-n, 1, 1], [1-n, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "b_dec":
-                deformation_matrix = np.array([[1, 1-n, 1], [1, 1-n, 1], [1, 1-n, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_dec":
-                deformation_matrix = np.array([[1, 1, 1-n], [1, 1, 1-n], [1, 1, 1-n]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "a_inc":
-                deformation_matrix = np.array([[1+n, 1, 1], [1+n, 1, 1], [1+n, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "b_inc":
-                deformation_matrix = np.array([[1, 1+n, 1], [1, 1+n, 1], [1, 1+n, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_inc":
-                deformation_matrix = np.array([[1, 1, 1+n], [1, 1, 1+n], [1, 1, 1+n]])
-                single_run(deformation_type, deformation_matrix)
+            if deformation_type == a_dec:
+                a_d = a * (1 - n)
+                new_lattice = Lattice.from_parameters(a_d, b, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == b_dec:
+                b_d = b * (1 - n)
+                new_lattice = Lattice.from_parameters(a, b_d, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_dec:
+                c_d = c * (1 - n)
+                new_lattice = Lattice.from_parameters(a, b, c_d, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == a_inc:
+                a_i = a * (1 + n)
+                new_lattice = Lattice.from_parameters(a_i, b, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == b_inc:
+                b_i = b * (1 + n)
+                new_lattice = Lattice.from_parameters(a, b_i, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_inc:
+                c_i = c * (1 + n)
+                new_lattice = Lattice.from_parameters(a, b, c_i, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
 
     elif lattice_type == "monoclinic":
-        deformation_types = ['a_dec', 'b_dec', 'c_dec', 'a_inc', 'b_inc', 'c_inc']
+        deformation_types = [a_dec, b_dec, c_dec, a_inc, b_inc, c_inc]
         for deformation_type in deformation_types:
-            if deformation_type == "a_dec":
-                deformation_matrix = np.array([[1-n, 1, 1], [1-n, 1, 1], [1, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "b_dec":
-                deformation_matrix = np.array([[1, 1-n, 1], [1, 1-n, 1], [1, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_dec":
-                deformation_matrix = np.array([[1, 1, 1], [1, 1, 1], [1-n, 1-n, 1-n]]) # Aflow for some reason is different for a3 = ccosβx^+csinβz so 'a1' and 'a2' are switched leading to 'a' and 'b' being switched
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "a_inc":
-                deformation_matrix = np.array([[1+n, 1, 1], [1+n, 1, 1], [1, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "b_inc":
-                deformation_matrix = np.array([[1, 1+n, 1], [1, 1+n, 1], [1, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_inc":
-                deformation_matrix = np.array([[1, 1, 1], [1, 1, 1], [1+n, 1+n, 1+n]]) # Aflow for some reason is different for a3 = ccosβx^+csinβz so 'a1' and 'a2' are switched leading to 'a' and 'b' being switched
-                single_run(deformation_type, deformation_matrix)
+            if deformation_type == a_dec:
+                a_d = a * (1 - n)
+                new_lattice = Lattice.from_parameters(a_d, b, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == b_dec:
+                b_d = b * (1 - n)
+                new_lattice = Lattice.from_parameters(a, b_d, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_dec:
+                c_d = c * (1 - n)
+                new_lattice = Lattice.from_parameters(a, b, c_d, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == a_inc:
+                a_i = a * (1 + n)
+                new_lattice = Lattice.from_parameters(a_i, b, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == b_inc:
+                b_i = b * (1 + n)
+                new_lattice = Lattice.from_parameters(a, b_i, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_inc:
+                c_i = c * (1 + n)
+                new_lattice = Lattice.from_parameters(a, b, c_i, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
 
     elif lattice_type == "triclinic":
-        deformation_types = ['a_dec', 'b_dec', 'c_dec', 'a_inc', 'b_inc', 'c_inc']
+        deformation_types = [a_dec, b_dec, c_dec, a_inc, b_inc, c_inc]
         for deformation_type in deformation_types:
-            if deformation_type == "a_dec":
-                deformation_matrix = np.array([[1-n, 0, 0], [1, 1, 0], [1, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "b_dec":
-                deformation_matrix = np.array([[1, 0, 0], [1-n, 1-n, 0], [1, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_dec":
-                deformation_matrix = np.array([[1, 0, 0], [1, 1, 0], [1-n, 1-n, 1-n]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "a_inc":
-                deformation_matrix = np.array([[1+n, 0, 0], [1, 1, 0], [1, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "b_inc":
-                deformation_matrix = np.array([[1, 0, 0], [1+n, 1+n, 0], [1, 1, 1]])
-                single_run(deformation_type, deformation_matrix)
-            if deformation_type == "c_inc":
-                deformation_matrix = np.array([[1, 0, 0], [1, 1, 0], [1+n, 1+n, 1+n]])
-                single_run(deformation_type, deformation_matrix)
+            if deformation_type == a_dec:
+                a_d = a * (1 - n)
+                new_lattice = Lattice.from_parameters(a_d, b, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == b_dec:
+                b_d = b * (1 - n)
+                new_lattice = Lattice.from_parameters(a, b_d, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_dec:
+                c_d = c * (1 - n)
+                new_lattice = Lattice.from_parameters(a, b, c_d, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == a_inc:
+                a_i = a * (1 + n)
+                new_lattice = Lattice.from_parameters(a_i, b, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == b_inc:
+                b_i = b * (1 + n)
+                new_lattice = Lattice.from_parameters(a, b_i, c, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
+            if deformation_type == c_inc:
+                c_i = c * (1 + n)
+                new_lattice = Lattice.from_parameters(a, b, c_i, alpha, beta, gamma)
+                single_run(deformation_type, new_lattice)
 
-    else:
-        print("Error! Unknown Lattice type for " + str(ID))
 
+def creator(datalist, datadir, def_factor=0.05, undeformed=True, hydrostatic=False, uniaxial=False, field=False):
+    df = pd.read_csv(datalist, index_col=0, sep=',')
+    with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice progress bar
+        pbar.set_description("Processing datalist")
+        for item in df.index.tolist():
+            pbar.update(1)
+            ID = str(item)
+            global path
+            path = output_path + '/' + str(ID) + '/'  # Prepare folder single ID (all subfolders will go there)
+            if os.path.exists(path):  # !WARNING! Overwrites existing path!
+                shutil.rmtree(path)  #
+            os.makedirs(path)  #
 
-def parseArguments():
-    """Function for parsing input arguments necessary for creator.py to work.
-    We expect to at least get ID (name of POSCAR) to work with.
-    By default deformation coefficient is set to 5%
-    THIS FUNCTION IS CURRENTLY UNUSED AND OUTDATED"""
+            # Take all information from poscar as list of strings:
 
-    parser = argparse.ArgumentParser()    # Create argument parser
-    # Positional mandatory arguments
-    parser.add_argument("ID", help="Name of POSCAR file", type=str)
-    # Optional arguments
-    parser.add_argument("-d", "--deformation", help="Deformation Coefficient", type=float, default=0.05)
-    # Parse arguments
-    args = parser.parse_args()
-    return args
+            structure_file = datadir + str(ID) + '.cif'
+            global poscar_content
+            poscar_content = POSCAR_reader.read(structure_file)
+            poscar_string = ''.join(poscar_content)  # merging poscar content in a single string so pymatgen can read it
+            poscar = Poscar.from_string(poscar_string)  # using pymatgen to acquire our structure from poscar content
+            structure = poscar.structure
 
+            a_par = structure.lattice.a
+            b_par = structure.lattice.b
+            c_par = structure.lattice.c
+            alpha_ang = structure.lattice.alpha
+            beta_ang = structure.lattice.beta
+            gamma_ang = structure.lattice.gamma
+
+            a = SpacegroupAnalyzer(structure, symprec=1e-4)
+            lat_type = a.get_crystal_system()
+
+            lat_type = (df.loc[item, 'lattice_system']) # comment for auto-detection via pymatgen
+
+            # getting list of elemets from structure
+            global elem_list
+            used = set()
+            mylist = structure.species
+            unique = [x for x in mylist if x not in used and (used.add(x) or True)]
+
+            elem_list = str(unique).replace('Element ', '').strip('][').split(', ')
+
+            if undeformed is True:  # check if we want undeformed structure
+                undeformed_lattice(a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
+            if uniaxial is True & (def_factor != 0):  # Check if we want deformation to happen
+                uniaxial_defromations(lat_type, def_factor, a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
+            if (hydrostatic is True) & (def_factor != 0):  # check if we want uniaxial deformation
+                volumetric_deformation(def_factor, a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
+            if field is True:  # check if we want applied field on undeformed structure
+                applied_field(a_par, b_par, c_par, alpha_ang, beta_ang, gamma_ang)
+    # df.to_csv(datalist.replace('.csv', '_updated.csv'))
 
 
 # ------------------------------------------------------------------------------------------------------- #
@@ -227,49 +318,40 @@ def parseArguments():
 # os.makedirs(path)       # will be created/executed/cleaned - working directory
 
 warnings.filterwarnings("ignore")  # slightly dirty, but simple way to disable pymatgen complaining about lack
-                                   # of element labels in POSCARs from aflowlib "UserWarning: Elements in POSCAR cannot be determined."
+                                   # of element labels in POSCARs from aflowlib
+                                   # "UserWarning: Elements in POSCAR cannot be determined."
                                    # Warning ! This disables _ALL_ warnings.
 
 ### Setting which database we work with ###
 
-wdatadir = '../Database/aflow/datadir_structure_relaxed/'
-# wdatadir = 'D:/MCES/Aflow/second stage test 2/datadir_updated/'
-wdatalist = 'D:/MCES/Aflow/second stage test 3/datalist_test.csv'
-output_path = 'D:/MCES/Aflow/second stage test 3/'
+# MP
+# wdatadir = 'D:/MCES/MP/datadir/'
+# wdatalist = 'D:/MCES/MP/more_points_without_O.csv'
+# output_path = 'D:/MCES/MP/inputdir_more_points'
 
-runtype = 'first, BEXT, deformed'
+# COD
+#wdatadir = 'D:/MCES/COD/datadir/'
+#wdatalist = 'D:/MCES/COD/step3trimclort.csv'
+#output_path = 'D:/MCES/COD/inputdir_fix_tri2'
 
-def_factor = 0  # deformation factor 0.05 == 5%, deformation is done both for expansion and contraction.
+# # ICSD
+# wdatadir = 'D:/MCES/ICSD/datadir/'
+# wdatalist = 'D:/MCES/ICSD/step0.csv'
+# output_path = 'D:/MCES/ICSD/inputdir_step'
 
-df = pd.read_csv(wdatalist, index_col=0, sep=',')
-with tqdm.tqdm(total=len(df.index)) as pbar:  # A wrapper that creates nice progress bar
-    pbar.set_description("Processing datalist")
-    for item in df.index.tolist():
-        pbar.update(1)
-        ID = str(item).split('.')[0]
+# wdatadir = 'D:/MCES/MP/test4/MP_structures/'
+# wdatalist = 'D:/MCES/MP/test4/datalist_MP_lattfix.csv'
+# output_path = 'D:/MCES/MP/test4/'
 
-        path = output_path + 'inputdir/' + str(ID) + '/'  # Prepare folder folder where all subfolders for a single ID
-        if os.path.exists(path):  # !WARNING! Overwrites existing path!
-            shutil.rmtree(path)  #
-        os.makedirs(path)  #
+# wdatalist = '../Database/TESTS/TestDB/datalist_TestDB.csv'
+# wdatadir_structure = '../Database/TESTS/TestDB/datadir_TestDB/'
+# output_path = '../Database/TESTS/TestDB/datadir_TestDB/'
 
-        ### Take all information from poscar as list of strings:
-        structure_file = wdatadir + (str(ID)) #+ '.cif'
-        poscar_content = POSCAR_reader.read(structure_file)
-        lat_type = (df.loc[item, 'lattice_system'])
-        elem_list = (df.loc[item, 'species']).replace(';', ',').replace("'", "").strip('][').split(', ')
-
-        if def_factor == 0:  # Check if we want deformation to happen
-            undeformed_lattice()  # Create a folder for a job without any deformation
-            #applied_field()
-        else:
-            undeformed_lattice()
-            #applied_field()
-            deformed_lattice(lat_type, def_factor)  # Create the proper number of folders for all possible deformations according to Bravais lattice type
+wdatalist = 'D:/MCES/TESTS/single/datalist.csv'
+wdatadir = 'D:/MCES/TESTS/single/datadir/'
+output_path = 'D:/MCES/TESTS/single/inputdir/'
 
 
 
-# pat = 'test/'
-# cont = POSCAR_reader.read('mp-778.cif')
-# deformation = [[1, 1, 1], [1, 1, 1], [1, 1, 1]]
-# POSCAR_maker.writer(pat, cont, deformation)
+creator(wdatalist, wdatadir, def_factor=0.05, hydrostatic=False, uniaxial=True, undeformed=False, field=False)
+# creator('MnAs.csv', 'datadir/')
