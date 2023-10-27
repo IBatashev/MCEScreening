@@ -1,127 +1,7 @@
 import os
 import pandas as pd
 import tqdm
-import numpy as np
 
-
-def status_before_old(datalist, inputdir, start=-1):
-    """ Function that reads through inputdir and lists undeformed structure and all it's
-    deformations and writes result to a new .csv file."""
-    counter = 0
-    df = pd.read_csv(datalist, index_col=0, sep=',')
-
-    with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
-        pbar.set_description("Processing datalist")
-        for item in df.index.tolist():
-            pbar.update(1)                              # Updating progress bar at each step
-            path = inputdir + '/' + str(item)
-            deformations = os.listdir(path)
-            for deformation in deformations:
-                df.loc[item, str(deformation)] = 'to_run'
-                counter = counter+1
-                df.to_csv((datalist.replace('.csv', '_beforeRun.csv')))
-    print('Total number of calculations to perform ', counter)
-
-
-def status_after_old(datalist, outdir):
-    """A function to display progress of screening or prepare a report on completed screening - a csv file with all IDs
-    their with their deformations and number of warnings failures"""
-
-    sub_calculations_list = ['a_inc', 'a_dec', 'b_inc', 'b_dec', 'c_inc', 'c_dec', 'V_inc', 'V_dec']
-    # sub_calculations_list = ['V_inc', 'V_dec']
-    fail_counter = 0
-    run_counter = 0
-    total_warning_counter = 0
-    df = pd.read_csv(datalist, index_col=0, sep=',')
-
-    with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
-        pbar.set_description("Processing datalist")
-        for item in df.index.tolist():
-            pbar.update(1)                              # Updating progress bar at each step
-
-            warn_counter = 0
-            path = outdir + '/' + str(item)
-            if os.path.exists(path):                                    # first we look if this entry was calculated, if folder in outdir does not exist it means it was not run at all and status will remain 'to_run'
-
-                if df.loc[item, 'undeformed'] == 'to_run':              # Next, we check if undeformed was calculated (this is purely for the case when we use this script after we calculated some specific deformation in a new run and want to merge results)
-                    if os.path.exists(path + '/' + 'undeformed'):
-                        files = os.listdir(path + '/' + 'undeformed')
-                        run_counter = run_counter + 1
-                        if 'warning' in files:
-                            with open(path + '/' + 'undeformed' + '/warning', 'r') as f:
-                                for line in f:
-                                    warn_counter = warn_counter + 1
-                                    total_warning_counter = total_warning_counter + 1
-                        if 'fail' in files:                                 # if there is a fail flag in undeformed subfolder all deformations that were supposed to run for this compounds are marked as failures
-                            df.loc[item, 'undeformed'] = 'failed'
-                            with open(path + '/' + 'undeformed' + '/fail', 'r') as failfile:
-                                df.loc[item, 'undeformed_fail_reason'] = failfile.readline().strip('\n')
-                            fail_counter = fail_counter + 1
-                            for sub_calc in sub_calculations_list:
-                                if df.loc[item, sub_calc] == 'to_run':
-                                    df.loc[item, sub_calc] = 'failed'
-                                    fail_counter = fail_counter + 1
-                            continue                                        # we no longer need to separately check subruns anymore so we skip to next entry
-                        else:
-                            df.loc[item, 'undeformed'] = 'completed'
-                    else:
-                        df.loc[item, 'undeformed'] = 'failed'
-                        df.loc[item, 'undeformed' + '_fail_reason'] = 'not calculated'
-                        fail_counter = fail_counter + 1
-                        for sub_calc in sub_calculations_list:
-                            if df.loc[item, sub_calc] == 'to_run':
-                                df.loc[item, sub_calc] = 'failed'
-                                fail_counter = fail_counter + 1
-
-                for sub_calc in sub_calculations_list:
-                    if df.loc[item, sub_calc] == 'to_run':
-                        if os.path.exists(path + '/' + sub_calc):
-                            files = os.listdir(path + '/' + sub_calc)
-                            run_counter = run_counter + 1
-                            if 'warning' in files:
-                                with open(path + '/' + sub_calc + '/warning', 'r') as f:
-                                    for line in f:
-                                        warn_counter = warn_counter + 1
-                                        total_warning_counter = total_warning_counter + 1
-                            if 'fail' in files:
-                                df.loc[item, sub_calc] = 'failed'
-                                with open(path + '/' + sub_calc + '/fail', 'r') as failfile:
-                                    df.loc[item, sub_calc+'_fail_reason'] = failfile.readline().strip('\n')
-                                fail_counter = fail_counter + 1
-                            else:
-                                df.loc[item, sub_calc] = 'completed'
-                        else:
-                            df.loc[item, sub_calc] = 'failed'
-                            df.loc[item, sub_calc + '_fail_reason'] = 'not calculated'
-                            fail_counter = fail_counter + 1
-                df.loc[item, 'warnings'] = warn_counter
-
-    df.to_csv((datalist.replace('.csv', '_afterRun.csv')))
-    print('Total number of calculations', run_counter)
-    print('Total number of failures', fail_counter)
-    print('Total number of warnings', total_warning_counter)
-
-
-def sieve_for_success_old(datalist):
-    """Separates datalist into one for fully sucessful entries and one for entries with some kind of failures
-    We actually only need it if we want to use Screener module on a run that was not completely successful yet, as
-    Screener cannot properly deal with entries that have failures. .csv of failures is just an extra for convenience"""
-
-    calculations_checklist = ['a_inc', 'a_dec', 'b_inc', 'b_dec', 'c_inc', 'c_dec', 'V_inc', 'V_dec']
-
-    df = pd.read_csv(datalist, index_col=0, sep=',')
-
-    df_suc = df[~df[calculations_checklist].isin(['failed', 'to_run']).any(axis=1)]
-    df_fail = df[df[calculations_checklist].isin(['failed']).any(axis=1)]
-    df_torun = df[df[calculations_checklist].isin(['to_run']).any(axis=1)]
-
-    df_suc.to_csv(datalist.replace(".csv", '_success_sieved.csv'))
-    df_fail.to_csv(datalist.replace(".csv", '_failed_sieved.csv'))
-    df_torun.to_csv(datalist.replace(".csv", '_torun_sieved.csv'))
-
-    print('Number of successful entries', len(df_suc.index))
-    print('Number of failed entries', len(df_fail.index))
-    print('Number of not yet run entries', len(df_torun.index))
 
 
 def status_before(datalist, calc_dict):
@@ -322,13 +202,15 @@ def sieve_for_success(datalist, calc_dict):
 
     df = pd.read_csv(datalist, index_col=0, sep=',')
 
-    # df_suc = df[~df[crit_fail].isin(['yes']).any(axis=1)]
-    df_suc = df.drop(df[df['crit_fail'] == 'Yes'].index)
-    for i in columns_to_remove:
-        try:
-            df_suc.drop(i, inplace=True, axis=1)
-        except:
-            pass
+    # df_suc = df[~df['crit_fail'].isin(['yes']).any(axis=1)]
+    try:
+        df_suc = df.drop(df[df['crit_fail'] == 'Yes'].index)
+        for i in columns_to_remove:
+            try:
+                df_suc.drop(i, inplace=True, axis=1)
+            except:
+                pass
+    except: df_suc = df
 
     # df_fail = df[df[calculations_checklist].isin(['failed']).any(axis=1)]
     # df_torun = df[df[calculations_checklist].isin(['to_run']).any(axis=1)]
@@ -341,7 +223,7 @@ def sieve_for_success(datalist, calc_dict):
     # print('Number of not yet run entries', len(df_torun.index))
 
 
-def status_RSPt(datalist):
+def status_RSPt(datalist, outdir):
     """A function to display progress of RSPt and UppASD screening run and prepare a report - a csv file with current status for all IDs"""
     fail_counter = 0
     success_counter = 0
@@ -401,50 +283,20 @@ def status_RSPt(datalist):
 #  \____/\___/|_| |_| |_|_| |_| |_|\__,_|_| |_|\__,_|___/ \____/ \__\__,_|_|   \__| \_| |_/\___|_|  \___| #
 #                                                                                                         #
 # ------------------------------------------------------------------------------------------------------- #
-# VASP runs arguments/commands
 
-# # MP
-# calculations = {'undeformed': '', 'Applied_Field': '', 'uniaxial': ['0.84', '0.9', '0.95', '1.05', '1.1', '1.16'], 'volumetric': ['0.95', '1.05']}
-# # this dictionary determines what type of calculatons we want to perform with the datalist
-# # it is necessary to prepare a proper 'before' status.
-# # uniaxial and volumetric must contain ALL deformation values (both increase and decrease)
-# # Applied_Field can be modified to contains all values of field which are calculated (not implemented currently)
-#
-# outdir = 'D:/MCES/MP/outdir'
-# # status_before('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv', calculations)
-# status_after('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRunning.csv', outdir, calculations)
-# sieve_for_success('D:/MCES/MP/datalist_lattfix_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRunning_afterRun.csv', calculations)
-#
+### Selecting which calculation types will be performed ###
+calculations = {'undeformed': '', 'Applied_Field': '', 'uniaxial': ['0.9', '0.95', '1.05', '1.1']}
 
-# # COD
-# calculations = {'undeformed': '', 'Applied_Field': '', 'uniaxial': ['0.9', '0.95', '1.05', '1.1'], 'volumetric': ['0.95', '1.05']}
-# outdir = 'D:/MCES/COD/outdir'
-# status_before('D:/MCES/COD/step3.csv', calculations)
-# status_after('D:/MCES/COD/step3_beforeRunning.csv', outdir, calculations)
-# sieve_for_success('D:/MCES/COD/step3_beforeRunning_afterRun.csv', calculations)
+### Setting which database we work with ###
+wdatadir = 'D:/MCES/TESTS/Gilles/datadir/'
+wdatalist= 'D:/MCES/TESTS/Gilles/datalist_updated_no.duplicates_sieved.mag.sites_sieved.mag.active_sieved.mag.field.csv'
+wdatalist = 'D:/MCES/TESTS/Gilles/datalist_updated_no.duplicates_sieved.mag.sites_sieved.mag.active_sieved.mag.field_beforeRunning.csv'
+vasp_results_dir = 'D:/MCES/TESTS/Gilles/donedir'
 
-# AFLOW
-# calculations = {'undeformed': '', 'uniaxial': ['0.95', '1.05']}
+# status_before(wdatalist_before, calculations)
 
-# outdir = 'D:/MCES/Aflow/outdir'
-# status_before('D:/MCES/Aflow/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates.csv', calculations)
-# status_after('D:/MCES/Aflow/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRunning.csv', outdir, calculations)
-# sieve_for_success('D:/MCES/Aflow/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRunning_afterRun.csv', calculations)
-#
-# datalist_before = 'D:/MCES/aflow/errors_run1/datalist.csv'
-# datalist_after = 'D:/MCES/aflow/errors_run1/datalist_beforeRun.csv'
-# outdir = 'D:/MCES/aflow/errors_run1/outdir'
-# inputdir = 'D:/MCES/aflow/errors_run1/inputdir'
+# wdatalist = 'D:/MCES/TESTS/Gilles/datalist_updated_no.duplicates_sieved.mag.sites_sieved.mag.active_sieved.mag.field_beforeRunning.csv'
+# status_after(wdatalist, vasp_results_dir, calculations)
 
-
-# # ICSD
-# calculations = {'undeformed': '', 'Applied_Field': '', 'uniaxial': ['0.9', '0.95', '1.05', '1.1'], 'volumetric': ['0.95', '1.05']}
-# outdir = 'D:/MCES/ICSD/outdir'
-# status_before('D:/MCES/ICSD/step0.csv', calculations)
-# status_after('D:/MCES/ICSD/step0_beforeRunning.csv', outdir, calculations)
-# sieve_for_success('D:/MCES/ICSD/step0_beforeRunning_afterRun.csv', calculations)
-
-
-# RSPt runs arguments/commands
-outdir = 'D:/MCES/MP/outdir_Tc_1/out'
-status_RSPt('D:/MCES/MP/datalist_for_Tc_less_70_atoms.csv')
+wdatalist = 'D:/MCES/TESTS/Gilles/datalist_updated_no.duplicates_sieved.mag.sites_sieved.mag.active_sieved.mag.field_beforeRunning_afterRun.csv'
+sieve_for_success(wdatalist, calculations)

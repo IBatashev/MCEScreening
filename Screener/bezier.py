@@ -175,7 +175,7 @@ def analyze(x=None, y=None, ID='', printer=False, plot=False):
 
         if number_of_segments == 1:
             initial_segment = np.array(segments[0])
-            slope, fit_quality_second, path_line = linfit(initial_segment[:, 0], initial_segment[:, 1])
+            slope, fit_quality, path_line = linfit(initial_segment[:, 0], initial_segment[:, 1])
         elif number_of_segments > 1:
             distances_to_undeformed = []
             for seg in segments:
@@ -184,11 +184,11 @@ def analyze(x=None, y=None, ID='', printer=False, plot=False):
             value_of_closest_one = find_nearest(distances_to_undeformed, 1)
             index_of_closest_one = int(np.where(distances_to_undeformed == value_of_closest_one)[0])
             initial_segment = np.array(segments[index_of_closest_one])
-            slope, fit_quality_second, path_line = linfit(initial_segment[:, 0], initial_segment[:, 1])
+            slope, fit_quality, path_line = linfit(initial_segment[:, 0], initial_segment[:, 1])
 
             # if first approach does not work well enough, we go deeper
             # break on special points (first try in maximums, then on inflections) and take longest line (so pythagoras between edge points of new even smaller segments)
-        if fit_quality_second < 0.9:
+        if fit_quality< 0.9:
             seg_x_max = float(np.max(initial_segment[:, 0]))
             seg_x_min = float(np.min(initial_segment[:, 0]))
 
@@ -220,12 +220,10 @@ def analyze(x=None, y=None, ID='', printer=False, plot=False):
                 distances_to_undeformed.append(closest)
             value_of_closest_one = find_nearest(distances_to_undeformed, 1)
             index_of_closest_one = int(np.where(distances_to_undeformed == value_of_closest_one)[0])
-            slope, fit_quality_third, path_line = linfit(secondary_segments[index_of_closest_one][:, 0], secondary_segments[index_of_closest_one][:, 1])
+            slope, fit_quality, path_line = linfit(secondary_segments[index_of_closest_one][:, 0], secondary_segments[index_of_closest_one][:, 1])
 
     if printer == True:
         print('initial linear fit r^2: ', fit_quality)
-        print('adjusted linear fit r^2: ', fit_quality_second)
-        print('2nd adjustment fit  r^2: ', fit_quality_third)
         print('Final value of Mel', slope)
 
     if plot == True:
@@ -245,7 +243,11 @@ def analyze(x=None, y=None, ID='', printer=False, plot=False):
                 ax1.axvline(i, color='black', alpha=0.2)
             plt.show()
 
-    return path, path_line, slope, fit_quality, fit_quality_second
+    # get distance from undeformed state to the step
+    path_center = np.take(path_line, path_line.size // 2)
+    step_distance = (path_center - 1)
+
+    return path, path_line, slope, fit_quality, step_distance
 
 
 def multiplot(id_list):
@@ -269,7 +271,7 @@ def multiplot(id_list):
 
         for idx in id_list:
 
-            path, path_line, slope, fit_quality, fit_quality_second = analyze(idx)
+            path, path_line, slope, fit_quality, step_distance = analyze(idx)
 
             if slope != 0:
                 # x, y = points[:, 0], points[:, 1]

@@ -1,27 +1,19 @@
 import pandas as pd
-import os
 import numpy as np
 import tqdm
-import tarfile
-import math
-import matplotlib.pyplot as plt
-from pymatgen.io.vasp import Poscar
 from pymatgen.io.cif import CifParser
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.core import Composition
+
 ### LOCAL IMPORTS ###
 from Tools import POSCAR_reader
 #from Screener import bezier
 import time
-import timeit
-import scipy
+
 from collections import Counter
 import threading
 import _thread   # import thread in python2
-import CifFile
-# from CifFile import CifFile
-from CifFile import StarFile
-from CifFile.StarFile import StarDict, StarList, StarLengthError
+
 from gemmi import cif
 import re
 

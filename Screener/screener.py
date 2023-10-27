@@ -3,19 +3,17 @@ import os
 import numpy as np
 import tqdm
 import tarfile
-import math
-import matplotlib.pyplot as plt
 from pymatgen.io.vasp import Poscar
-from pymatgen.io.cif import CifParser
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.core import Composition
+from pymatgen.io.vasp.outputs import Outcar
+import chemparse
+
 ### LOCAL IMPORTS ###
 from Tools import POSCAR_reader
 from Screener import bezier
 from Screener import energy_fit
 import time
-import timeit
-import scipy
 from collections import Counter
 
 
@@ -199,7 +197,7 @@ def completion_date(ID):
 
     # strictly speaking using time module here is an overkill.
     # Just sorting strings should be sufficient as VASP gives them in suitable format already.
-    # this is more flexible and timing for both approaches are similar so...
+    # this is more flexible and timings for both approaches are similar so...
 
     dates = []
     deformations = os.listdir(vasp_results_dir + '/' + str(ID))
@@ -210,6 +208,17 @@ def completion_date(ID):
                     dates.append(time.strptime((line.split()[-2]), "%Y.%m.%d"))
     date = time.strftime('%Y-%m-%d', max(dates))
     return date
+
+
+def max_mom_on_site(ID, deformation):
+    if deformation in os.listdir(vasp_results_dir + '/' + str(ID)):
+        out = vasp_results_dir + '/' + str(ID) + '/' + deformation + "/OUTCAR"
+        outcar_data = Outcar(out)
+        df_temp = pd.DataFrame((outcar_data.magnetization))
+        max_mom = (df_temp['tot'].abs().max())
+        return max_mom
+    else:
+        return ''
 
 
 def memory_used(ID):
@@ -245,6 +254,10 @@ def geometry_after(ID, deformation):
                     c = round((float(line.split()[-1]))*a, 2)
                 if 'B/A-ratio' in line:
                     b = round((float(line.split()[-1]))*a, 2)
+            if b == 0:
+                b = a
+            if c == 0:
+                c = a
         return a, b, c
     else:
         return '', '', ''
@@ -328,59 +341,6 @@ def mag_sites_difference(ID):
     return
 
 
-def linfit(x, y):
-    coeffs = np.polyfit(x, y, 1)
-    poly1d_fn = np.poly1d(coeffs)
-
-    # fit quality
-    yhat = poly1d_fn(x)  # or [p(z) for z in x]
-    ybar = np.sum(y) / len(y)  # or sum(y)/len(y)
-    ssreg = np.sum((yhat - ybar) ** 2)  # or sum([ (yihat - ybar)**2 for yihat in yhat])
-    sstot = np.sum((y - ybar) ** 2)  # or sum([ (yi - ybar)**2 for yi in y])
-    R_square = ssreg / sstot
-    return coeffs[0], R_square
-
-
-def parabfit(x, y):
-    coeffs = np.polyfit(x, y, 2)
-    poly1d_fn = np.poly1d(coeffs)
-    crit = poly1d_fn.deriv().r
-    extremum_x = float(crit[crit.imag == 0].real)
-    extremum_y = poly1d_fn(extremum_x)
-    extremum = [extremum_x, extremum_y]
-    # test = poly1d_fn.deriv(2)(r_crit) # can check if min or max if necessary
-    return extremum
-
-
-def magnetoelastic_moment(moment_dec, moment, moment_inc):
-    if moment and moment_dec and moment_inc != 0.0:
-        moment_change_dec = moment_dec/moment
-        moment_change_inc = moment_inc/moment
-    else:
-        return 0, 0, 0, 0
-
-    y = [moment_change_dec, 1, moment_change_inc]
-    x = [0.95, 1, 1.05]
-
-    slope, fit_quality = linfit(x, y)
-
-    if fit_quality < 0.75:
-        extremum = parabfit(x, y)
-
-        if abs(extremum[0] - 0.95) > abs(1.05 - extremum[0]):
-            x2 = [0.95, 1, extremum[0]]
-            y2 = [moment_change_dec, 1, extremum[1]]
-            new_slope, new_fit_quality = linfit(x2, y2)
-        else:
-            x2 = [extremum[0], 1, 1.05]
-            y2 = [extremum[1], 1, moment_change_inc]
-            new_slope, new_fit_quality = linfit(x2, y2)
-    else:
-        new_slope, new_fit_quality = slope, ''
-
-    return slope, fit_quality, new_slope, new_fit_quality
-
-
 def magnetoelastic(df, lat_param):
     df['volume'] = df.index
     df.columns = ['moment', 'mem', 'volume']
@@ -402,16 +362,16 @@ def magnetoelastic(df, lat_param):
     # print(mom_check)
     # print(moments)
     if len(volumes) < 2:
-        return 0, 0, 0
+        return 0, 1, 1
     # due to how linfit function works it will crash if all y values are the same.
     # and for our purpose materials with unchanging moment are useless as the slope is 0 by definition
 
     no_change_check = np.all(mom_check == mom_check[0])
     if no_change_check == True:
-        return 0, 1, 0
+        return 0, 1, 1
     else:
-        slope, fit_quality, fit_quality_second = bezier.analyze(volumes, moments)[-3:]
-        return float(slope), float(fit_quality), float(fit_quality_second)
+        slope, fit_quality, step_distance = bezier.analyze(volumes, moments)[-3:]
+        return float(slope), float(fit_quality), float(step_distance)
 
 
 def energy_fitting(df, lat_param):
@@ -470,7 +430,7 @@ def screener_before(datalist, database_type):
         # Write number of sites into datalist:
             if database_type == 'aflow':
                 df.at[item, 'mag_sites'] = mag_sites_calculator(item)
-            elif database_type == 'MP' or database_type == 'COD':
+            else:
                 df.at[item, 'mag_sites'] = mag_sites_calculator_MP(item)
 
         # Write internal magnetic field into datalist:
@@ -485,7 +445,7 @@ def screener_before(datalist, database_type):
     sieve(datalist.replace('.csv', '_updated_no.duplicates.csv'), 'mag_sites', min_site_number)
     sieve(datalist.replace('.csv', '_updated_no.duplicates_sieved.mag.sites.csv'), 'mag_active', min_active)
     if database_type == 'MP' or database_type == 'aflow':
-        sieve(datalist.replace('.csv', '_updated_sieved.sieved.mag.sites_sieved.mag.active.csv'), 'mag_field', min_mag_field)
+        sieve(datalist.replace('.csv', '_updated_no.duplicates_sieved.mag.sites_sieved.mag.active.csv'), 'mag_field', min_mag_field)
     print("Done")
 
 
@@ -500,54 +460,45 @@ def sieve(datalist, sieve_type, sieve_size):
     df.to_csv(datalist.replace(".csv", '_sieved.' + sieve_type.replace('_', '.') + '.csv'))
 
 
+def match_datalist(datalist1, datalist2):
+    """Helper function to combine two datalists based on chemical composition (can be adjusted to smth else)"""
+
+    df1 = pd.read_csv(datalist1, index_col=0, sep=',')
+    df2 = pd.read_csv(datalist2, index_col=0, sep=',')
+   # df1.merge(df2, left_on='chem_composition', right_on='chem_composition', how='left')
+    df3 = df1.merge(df2, left_on='chem_composition', right_on='chem_composition', how='left')
+    #df1 = np.where(df1['chem_composition'] == df2['chem_composition'], 'True', 'False')
+    df3 = df3.drop_duplicates()
+    df3.to_csv(datalist1.replace(".csv", '_matched' + '.csv'))
+
+
 def do_datalist(datalist):
-    """A small instance of screener, just to apply some parameter to the chosen datalist"""
+    """Helper - a small instance of screener, just to apply some parameter to the chosen datalist"""
 
     df = pd.read_csv(datalist, index_col=0, sep=',')
-    df2 = pd.read_csv('D:/MCES/MP/step4_success_sieved_out.csv', index_col=0, sep=',')
+    # df2 = pd.read_csv('D:/MCES/MP/step4_success_sieved_out.csv', index_col=0, sep=',')
 
+   # df['compound'] = df['compound'].astype(str).str.replace('\s+', '')
+    df['Names'] = df['Names'].astype(str).str.replace('"', '')
+    df['Names'] = df['Names'].astype(str).str.replace('[', '')
+    df['Names'] = df['Names'].astype(str).str.replace(']', '')
     with tqdm.tqdm(total=len(df.index)) as pbar:        # A wrapper that creates nice progress bar
         pbar.set_description("Processing datalist")
         for item in df.index.tolist():
             pbar.update(1)
+            try:
+          #  print(df.at[item, 'Names'])
+                df.at[item, 'chem_composition'] = str(chemparse.parse_formula(df.at[item, 'Names']))
+            except:
+                df.at[item, 'chem_composition'] = 'NaN'
 
-            df.loc[item, 'number_atoms'] = df2.loc[item, 'number_atoms']
-            # Updating progress bar at each step
-            # Write number of atoms into datalist
-            # a = df.loc[item, 'Mel_a_fit']
-            # b = df.loc[item, 'Mel_b_fit']
-            # c = df.loc[item, 'Mel_c_fit']
-            # if a == '':
-            #     a = 1
-            # if b == '':
-            #     b = 1
-            # if c == '':
-            #     c = 1
-            # poorest_fit = min(a, b, c)
-            # df.loc[item, 'poorst_fit'] = poorest_fit
-            # Applied field effect
-            # try:
-            #     OUTCAR_results = OUTCAR_reader(item)
-            # #print(OUTCAR_results)
-            # #if OUTCAR_results.at['undeformed', 'moment'] == 0 and OUTCAR_results.at['Applied_Field', 'moment'] != 0:
-            # #    bext = 2
-            # #elif OUTCAR_results.at['undeformed', 'moment'] == 0 and OUTCAR_results.at['Applied_Field', 'moment'] == 0:
-            # #    bext = 1
-            # #else:
-            # #    bext = round(OUTCAR_results.at['Applied_Field', 'moment'] / OUTCAR_results.at['undeformed', 'moment'], 2)
-            # #df.at[item, 'BEXT'] = bext
-            #
-            #     df.at[item, 'E_fit_a'] =  energy_fitting(OUTCAR_results.loc[:, ['tot_energy', 'memory']], 'a')
-            #     df.at[item, 'E_fit_b'] =  energy_fitting(OUTCAR_results.loc[:, ['tot_energy', 'memory']], 'b')
-            #     df.at[item, 'E_fit_c'] =  energy_fitting(OUTCAR_results.loc[:, ['tot_energy', 'memory']], 'c')
-            # except:
-            #     print('main cycle error ' + (str(item)))
-            #     total_errors = total_errors + 1
 
     df.to_csv(datalist.replace(".csv", '_new' + '.csv'))
 
 
 def calc_list(calc_dict):
+    """Converts chosen list of calculations into machine-readable form to feed results to some other functions"""
+
     sub_calculations_list = []
     if 'undeformed' in list(calc_dict):
         sub_calculations_list.append('undeformed')
@@ -579,7 +530,6 @@ def OUTCAR_reader(ID='', folder=''):
     energy_lines = []
 
     calc_types = calc_list(calculations)
-
 
     dd = pd.DataFrame(0, index=calc_types, dtype='float', columns=['time_spent', 'date_complete', 'memory', 'volume', 'moment', 'symmetry', 'tot_energy'])
     dd[['date_complete', 'symmetry']] = dd[['date_complete', 'symmetry']].astype('str')
@@ -671,15 +621,19 @@ def screener_after(datalist):
                 df.at[item, 'Mel_c'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[0], 2)
                 df.at[item, 'Mel_V'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[0], 2)
 
-                df.at[item, 'Mel_a_fit1'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'a')[1], 2)
-                df.at[item, 'Mel_b_fit1'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'b')[1], 2)
-                df.at[item, 'Mel_c_fit1'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[1], 2)
-                df.at[item, 'Mel_V_fit1'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[1], 2)
+                df.at[item, 'Mel_a_fit'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'a')[1], 2)
+                df.at[item, 'Mel_b_fit'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'b')[1], 2)
+                df.at[item, 'Mel_c_fit'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[1], 2)
+                df.at[item, 'Mel_V_fit'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[1], 2)
 
-                df.at[item, 'Mel_a_fit2'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'a')[2], 2)
-                df.at[item, 'Mel_b_fit2'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'b')[2], 2)
-                df.at[item, 'Mel_c_fit2'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[2], 2)
-                df.at[item, 'Mel_V_fit2'] = abs(round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[2], 2))
+                df.at[item, 'Mel_a_step_distance'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'a')[2], 2)
+                df.at[item, 'Mel_b_step_distance'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'b')[2], 2)
+                df.at[item, 'Mel_c_step_distance'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[2], 2)
+                df.at[item, 'Mel_V_step_distance'] = abs(round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[2], 2))
+
+                # df.at[item, 'E_a_fit'] = energy_fitting(OUTCAR_results.loc[:, ['tot_energy', 'memory']], 'a')
+                # df.at[item, 'E_b_fit'] = energy_fitting(OUTCAR_results.loc[:, ['tot_energy', 'memory']], 'b')
+                # df.at[item, 'E_c_fit'] = energy_fitting(OUTCAR_results.loc[:, ['tot_energy', 'memory']], 'c')
 
                 # Applied field effect
                 if OUTCAR_results.at['undeformed', 'moment'] == 0 and OUTCAR_results.at['Applied_Field', 'moment'] != 0:
@@ -698,9 +652,14 @@ def screener_after(datalist):
                 print('main cycle error ' + (str(item)))
                 total_errors = total_errors + 1
 
+        # Total energy fit qualities
+        # df['E_full_fit'] = round((df['E_fit_a'] + df['E_fit_b'] + df['E_fit_c']) / 3, 2)
+        # df['E_worst_fit'] = round((df[['E_a_fit', 'E_b_fit', 'E_c_fit']].min(axis=1)), 2)
 
         # Total Magneto Elastic parameter calculated outside of cycle for all items simultaneously
         df['Mel_full'] = round((df['Mel_a'] ** 2 + df['Mel_b'] ** 2 + df['Mel_c'] ** 2) ** 0.5, 2)
+        df['Mel_full_fit'] = round((df['Mel_a_fit'] + df['Mel_b_fit'] + df['Mel_c_fit']) / 3, 2)
+        df['Mel_worst_fit'] = round((df[['Mel_a_fit', 'Mel_b_fit', 'Mel_c_fit']].min(axis=1)), 2)
 
         df.to_csv(datalist.replace(".csv", '_out' + '.csv'))
         print("Finished. Error count is: ", total_errors)
@@ -732,21 +691,23 @@ def single_folder(datalist):
         df.at[item, 'Mel_c'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[0], 2)
         df.at[item, 'Mel_V'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[0], 2)
 
-        df.at[item, 'Mel_a_fit1'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'a')[1], 2)
-        df.at[item, 'Mel_b_fit1'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'b')[1], 2)
-        df.at[item, 'Mel_c_fit1'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[1], 2)
-        df.at[item, 'Mel_V_fit1'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[1], 2)
+        df.at[item, 'Mel_a_fit'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'a')[1], 2)
+        df.at[item, 'Mel_b_fit'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'b')[1], 2)
+        df.at[item, 'Mel_c_fit'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[1], 2)
+        df.at[item, 'Mel_V_fit'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[1], 2)
 
-        df.at[item, 'Mel_a_fit2'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'a')[2], 2)
-        df.at[item, 'Mel_b_fit2'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'b')[2], 2)
-        df.at[item, 'Mel_c_fit2'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[2], 2)
-        df.at[item, 'Mel_V_fit2'] = abs(round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[2], 2))
+        df.at[item, 'Mel_a_step_distance'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'a')[2], 2)
+        df.at[item, 'Mel_b_step_distance'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'b')[2], 2)
+        df.at[item, 'Mel_c_step_distance'] = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[2], 2)
+        df.at[item, 'Mel_V_step_distance'] = abs(round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'V')[2], 2))
 
         # Mag_field max
         max_moment_id = OUTCAR_results['moment'].idxmax()
         df.at[item, 'magF_max'] = round(abs(calculate_mag_field(OUTCAR_results.at[max_moment_id, 'moment'], OUTCAR_results.at[max_moment_id, 'volume'])), 2)
 
     df['Mel_full'] = round((df['Mel_a'] ** 2 + df['Mel_b'] ** 2 + df['Mel_c'] ** 2) ** 0.5, 2)
+    df['Mel_full_fit'] = round((df['Mel_a_fit'] + df['Mel_b_fit'] + df['Mel_c_fit']) / 3, 2)
+    df['Mel_worst_fit'] = round((df[['Mel_a_fit', 'Mel_b_fit', 'Mel_c_fit']].min(axis=1)), 2)
     df.to_csv(datalist.replace(".csv", '_out' + '.csv'))
 
 
@@ -760,64 +721,18 @@ def single_folder(datalist):
 #                                                                                                         #
 # ------------------------------------------------------------------------------------------------------- #
 price_list = pd.read_csv('prices.csv', index_col=0, sep=',')  # read the prices file
+
 ### Setting which database we work with ###
-# # Aflow
-# calculations = {'undeformed': '', 'uniaxial': ['0.95', '1.05']}
-# vasp_results_dir = 'D:/MCES/Aflow/outdir'
-# wdatadir_structure = 'D:/MCES/Aflow/datadir_structure_relaxed/'
-# wdatalist = 'D:/MCES/Aflow/datalist_updated_sieved.mag.field_sieved.mag.sites_no.duplicates_beforeRunning_afterRun_success_sieved.csv'
-# screener_after(wdatalist)
+wdatadir_structure = 'D:/MCES/TESTS/Gilles/datadir/'
+wdatalist = 'D:/MCES/TESTS/Gilles/datalist.csv'
+vasp_results_dir = 'D:/MCES/TESTS/Gilles/donedir'
 
-# Materials Project
-# calculations = {'undeformed': '', 'Applied_Field': '', 'uniaxial': ['0.84', '0.9', '0.95', '1.05', '1.1', '1.16'], 'volumetric': ['0.95', '1.05']}
-# # wdatadir_structure = 'D:/MCES/MP/datadir/'
-# # wdatalist = 'D:/MCES/MP/no_O.csv'
-# # vasp_results_dir = 'D:/MCES/MP/new_outdir'
+### Selecting which calculation types will be performed ###
+calculations = {'undeformed': '', 'Applied_Field': '', 'uniaxial': ['0.84', '0.9', '0.95', '1.05', '1.1', '1.16']}
 
-# calculations = {'undeformed': '', 'uniaxial': ['0.9', '0.95', '1.05', '1.1'], 'Applied_Field': ''}
-# wdatalist = 'D:/MCES/TESTS/Bocarsly_BEXT/datalist_beforeRunning_afterRun_success_sieved.csv'
-# wdatadir = 'D:/MCES/TESTS/Bocarsly_BEXT/datadir/'
-# vasp_results_dir = 'D:/MCES/TESTS/Bocarsly_BEXT/donedir'
+### Run before creating DFT inputs ###
+# screener_before(wdatalist, 'MP')
 
-
-
-# COD
-#calculations = {'undeformed': '', 'Applied_Field': '', 'uniaxial': ['0.9', '0.95', '1.05', '1.1'], 'volumetric': ['0.95', '1.05']}
-#wdatadir_structure = 'D:/MCES/COD/datadir/'
-#wdatalist = 'D:/MCES/COD/step3_beforeRunning_afterRun_success_sieved.csv'
-#vasp_results_dir = 'D:/MCES/COD/outdir'
-
-# screener_before(wdatalist, 'COD')
-# screener_after(wdatalist)
-# datalist = 'COD.csv'
-
-
-# ICSD
-# calculations = {'undeformed': '', 'Applied_Field': '', 'uniaxial': ['0.9', '0.95', '1.05', '1.1'], 'volumetric': ['0.95', '1.05']}
-# wdatadir_structure = 'D:/MCES/ICSD/datadir/'
-# wdatalist = 'D:/MCES/ICSD/step0_beforeRunning_afterRun_success_sieved_out.csv'
-# vasp_results_dir = 'D:/MCES/ICSD/outdir'
-
-# test
-calculations = {'undeformed': '', 'uniaxial': ['0.9', '0.95', '1.05', '1.1']}
-wdatadir_structure = 'D:/MCES/TESTS/single/datadir/'
-wdatalist = 'D:/MCES/TESTS/single/datalist.csv'
-vasp_results_dir = 'D:/MCES/TESTS/single/donedir'
-
-single_folder(wdatalist)
-# duplicates('D:/MCES/ICSD/step0_beforeRunning_afterRun_success_sieved_out.csv')
-
-
-# # duplicates(datalist)
-# pd.set_option('display.max_rows', None)
-# pd.set_option('display.max_columns', None)
-# pd.set_option('display.width', None)
-# pd.set_option('display.max_colwidth', -1)
-# # print(OUTCAR_reader('9012615'))
-
-
-# # a = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'a')[0], 2)
-# # b = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'b')[0], 2)
-# # c = round(magnetoelastic(OUTCAR_results.loc[:, ['moment', 'memory']], 'c')[0], 2)
-# # full = round((a ** 2 + b ** 2 + c ** 2) ** 0.5, 2)
-# # print(full)
+### Run after/during DFT calculations ###
+wdatalist = 'D:/MCES/TESTS/Gilles/datalist_updated_no.duplicates_sieved.mag.sites_sieved.mag.active_sieved.mag.field_beforeRunning_afterRun_success_sieved.csv'
+screener_after(wdatalist)

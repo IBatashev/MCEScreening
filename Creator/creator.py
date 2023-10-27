@@ -23,7 +23,7 @@ def single_run(calc_type, updated_lattice):
 
     path_to_calc = path + calc_type + "/"
     os.mkdir(path_to_calc)
-    POSCAR_maker.writer_MP(path_to_calc, poscar_content, updated_lattice)
+    POSCAR_maker.writer(path_to_calc, poscar_content, updated_lattice)
     # POSCAR_maker.structure_corrector_MP(path_to_calc)
     INCAR_maker.writer(path_to_calc, poscar_content, elem_list, calc_type, magmoms)
     POTCAR_maker.writer(path_to_calc, elem_list)
@@ -308,13 +308,13 @@ def creator(datalist, datadir, def_factor=0.05, undeformed=True, hydrostatic=Fal
 #                                                                                                         #
 # ------------------------------------------------------------------------------------------------------- #
 
-# WARNING, depending on the size of database the created inputdir can be quite large.
+# WARNING, depending on the size of database the created inputdir can be somewhat large.
 # Estimate: for ~100 entries inputdir is about 300mb.
 
 # args = parseArguments() # Get input arguments:
 # ID = args.ID            # ID of the structure we are going to work with
 # n = args.deformation    # deformation coefficient - an optional input argument
-# path = '../'+ID+'/'     # Prepare folder folder where all subfolders for a single ID
+# path = '../'+ID+'/'     # Prepare a folder with all subfolders for a single ID
 # os.makedirs(path)       # will be created/executed/cleaned - working directory
 
 warnings.filterwarnings("ignore")  # slightly dirty, but simple way to disable pymatgen complaining about lack
@@ -323,35 +323,9 @@ warnings.filterwarnings("ignore")  # slightly dirty, but simple way to disable p
                                    # Warning ! This disables _ALL_ warnings.
 
 ### Setting which database we work with ###
+wdatalist = 'path/to/your/datalist.csv'
+wdatadir = 'path/to/your/datadir/'
+output_path = 'path/to/your/vasp_input/inputdir/'
 
-# MP
-# wdatadir = 'D:/MCES/MP/datadir/'
-# wdatalist = 'D:/MCES/MP/more_points_without_O.csv'
-# output_path = 'D:/MCES/MP/inputdir_more_points'
-
-# COD
-#wdatadir = 'D:/MCES/COD/datadir/'
-#wdatalist = 'D:/MCES/COD/step3trimclort.csv'
-#output_path = 'D:/MCES/COD/inputdir_fix_tri2'
-
-# # ICSD
-# wdatadir = 'D:/MCES/ICSD/datadir/'
-# wdatalist = 'D:/MCES/ICSD/step0.csv'
-# output_path = 'D:/MCES/ICSD/inputdir_step'
-
-# wdatadir = 'D:/MCES/MP/test4/MP_structures/'
-# wdatalist = 'D:/MCES/MP/test4/datalist_MP_lattfix.csv'
-# output_path = 'D:/MCES/MP/test4/'
-
-# wdatalist = '../Database/TESTS/TestDB/datalist_TestDB.csv'
-# wdatadir_structure = '../Database/TESTS/TestDB/datadir_TestDB/'
-# output_path = '../Database/TESTS/TestDB/datadir_TestDB/'
-
-wdatalist = 'D:/MCES/TESTS/single/datalist.csv'
-wdatadir = 'D:/MCES/TESTS/single/datadir/'
-output_path = 'D:/MCES/TESTS/single/inputdir/'
-
-
-
-creator(wdatalist, wdatadir, def_factor=0.05, hydrostatic=False, uniaxial=True, undeformed=False, field=False)
-# creator('MnAs.csv', 'datadir/')
+### Preparing input files ###
+creator(wdatalist, wdatadir, def_factor=0.05, hydrostatic=True, uniaxial=True, undeformed=True, field=False)

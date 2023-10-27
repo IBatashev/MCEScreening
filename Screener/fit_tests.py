@@ -3,7 +3,8 @@ import numpy as np
 from scipy.optimize import curve_fit as cf
 import os
 
-outdir = 'D:/MCES/MP/outdir'
+# outdir = 'D:/MCES/MP/outdir'
+outdir = 'D:/MCES/MP/outdir_VVV'
 vasp_results_dir = outdir
 
 
@@ -165,7 +166,6 @@ def polyfit_moment(ID, deformation, plot=True):
     parabcoeffs = np.polyfit(x, y, 2)
     poly1d_par = np.poly1d(parabcoeffs)
 
-
     # search extremum
     crit = poly1d_par.deriv().r
     extremum_x = float(crit[crit.imag == 0].real)
@@ -173,6 +173,7 @@ def polyfit_moment(ID, deformation, plot=True):
     extremum = [extremum_x, extremum_y]
 
     # test = poly1d_fn.deriv(2)(r_crit) # can check if min or max if necessary
+    results2 = {}
 
     if abs(extremum[0] - 0.95) > abs(1.05 - extremum[0]):
         x2 = [0.95, 1, extremum[0]]
@@ -180,12 +181,26 @@ def polyfit_moment(ID, deformation, plot=True):
         # new_slope, new_fit = linfit(x, y)
         lincoeffs2 = np.polyfit(x2, y2, 1)
         poly1d_lin2 = np.poly1d(lincoeffs2)
+
+        yhat = poly1d_lin2(x2)  # or [p(z) for z in x]
+        ybar = np.sum(y2) / len(y2)  # or sum(y)/len(y)
+        ssreg = np.sum((yhat - ybar) ** 2)  # or sum([ (yihat - ybar)**2 for yihat in yhat])
+        sstot = np.sum((y2 - ybar) ** 2)  # or sum([ (yi - ybar)**2 for yi in y])
+        results2['R^2'] = ssreg / sstot
+
     else:
         x2 = [extremum[0], 1, 1.05]
         y2 = [extremum[1], 1, moment_inc/moment]
         # new_slope, new_fit = linfit(x, y)
         lincoeffs2 = np.polyfit(x2, y2, 1)
         poly1d_lin2 = np.poly1d(lincoeffs2)
+
+        yhat = poly1d_lin2(x2)  # or [p(z) for z in x]
+        ybar = np.sum(y2) / len(y2)  # or sum(y)/len(y)
+        ssreg = np.sum((yhat - ybar) ** 2)  # or sum([ (yihat - ybar)**2 for yihat in yhat])
+        sstot = np.sum((y2 - ybar) ** 2)  # or sum([ (yi - ybar)**2 for yi in y])
+        results2['R^2'] = ssreg / sstot
+
     # else:
     #     poly1d_lin2 = poly1d_lin
 
@@ -201,7 +216,7 @@ def polyfit_moment(ID, deformation, plot=True):
 
         xp = np.linspace(0.9, 1.1, 50)
 
-        fig, axs = plt.subplots(1, 3, figsize=(9, 3))
+        fig, axs = plt.subplots(1, 3, figsize=(15, 6))
         axs[0].plot(x, y, 'yo', xp, poly1d_lin(xp), '--k')
         axs[1].plot(x, y, 'yo', xp, poly1d_par(xp), '--k')
         axs[2].plot(x, y, 'yo', xp, poly1d_lin2(xp), '--c')
@@ -220,7 +235,7 @@ def polyfit_moment(ID, deformation, plot=True):
         axs[0].set_ylabel('$\it{Moment}$', rotation=90, ha="right", fontsize=14)
         axs[1].set_xlabel('$\it{V_{def}/V}$', ha="left", fontsize=16)
         axs[1].set_ylabel('$\it{Moment}$', rotation=90, ha="right", fontsize=14)
-        axs[2].set_xlabel('$\it{V_{def}/V}$', ha="left", fontsize=16)
+        axs[2].set_xlabel('$\it{a_{def}/a}$', ha="left", fontsize=16)
         axs[2].set_ylabel('$\it{Moment}$', rotation=90, ha="right", fontsize=14)
         # set limits - needs modification
         xlimit = 0.9, 1.1
@@ -236,6 +251,101 @@ def polyfit_moment(ID, deformation, plot=True):
 
     return results
 
+
+def polyfit_moment_5point(ID, plot=True):
+    # if deformation + '_inc' in os.listdir(vasp_results_dir + '/' + str(ID)):
+
+    # moment_inc, volume_inc, field_inc = moment_volume_after(ID, deformation+'_inc')
+    # moment_dec, volume_dec, field_dec = moment_volume_after(ID, deformation + '_dec')
+    moment, volume, field = moment_volume_after(ID, 'undeformed')
+
+    moment_ll = moment_volume_after(ID, 'a_dec')[0]/moment
+    moment_l = moment_volume_after(ID, 'V_dec')[0]/moment
+    moment_h = moment_volume_after(ID, 'V_inc')[0]/moment
+    moment_hh = moment_volume_after(ID, 'a_inc')[0]/moment
+
+    y = [moment_ll, moment_l, 1, moment_h, moment_hh]
+    x = [0.84, 0.95, 1, 1.05, 1.16]
+
+    results = {}
+    lincoeffs = np.polyfit(x, y, 1)
+
+    # lincoeffs = np.polyfit(x, y, degree)
+    poly1d_lin = np.poly1d(lincoeffs)
+
+     # Polynomial Coefficients
+    results['fit coefficients'] = lincoeffs.tolist()
+
+    # fit quality
+    yhat = poly1d_lin(x)              # or [p(z) for z in x]
+    ybar = np.sum(y)/len(y)          # or sum(y)/len(y)
+    ssreg = np.sum((yhat-ybar)**2)   # or sum([ (yihat - ybar)**2 for yihat in yhat])
+    sstot = np.sum((y - ybar)**2)    # or sum([ (yi - ybar)**2 for yi in y])
+    results['R^2'] = ssreg / sstot
+
+    parabcoeffs = np.polyfit(x, y, 5)
+    poly1d_par = np.poly1d(parabcoeffs)
+
+    # # search extremum
+    # crit = poly1d_par.deriv().r
+    # extremum_x = float(crit[crit.imag == 0].real)
+    # extremum_y = poly1d_par(extremum_x)
+    # extremum = [extremum_x, extremum_y]
+    #
+    # # test = poly1d_fn.deriv(2)(r_crit) # can check if min or max if necessary
+    #
+    # if abs(extremum[0] - 0.84) > abs(1.16 - extremum[0]):
+    #     x2 = [0.84, 0.95, 1, 1.05, extremum[0]]
+    #     y2 = [moment_ll, moment_l, 1, moment_h, extremum[1]]
+    #     # new_slope, new_fit = linfit(x, y)
+    #     lincoeffs2 = np.polyfit(x2, y2, 1)
+    #     poly1d_lin2 = np.poly1d(lincoeffs2)
+    # else:
+    #     x2 = [extremum[0], 0.95, 1, 1.05, 1.16]
+    #     y2 = [extremum[1], moment_l, 1, moment_h, moment_hh]
+    #     # new_slope, new_fit = linfit(x, y)
+    #     lincoeffs2 = np.polyfit(x2, y2, 1)
+    #     poly1d_lin2 = np.poly1d(lincoeffs2)
+
+    if plot == True:
+        print('Plotting...')
+
+        xp = np.linspace(0.8, 1.2, 50)
+
+        fig, axs = plt.subplots(1, 3, figsize=(15, 6))
+        axs[0].plot(x, y, 'yo', xp, poly1d_lin(xp), '--k')
+        axs[1].plot(x, y, 'yo', xp, poly1d_par(xp), '--k')
+        # axs[2].plot(x, y, 'yo', xp, poly1d_lin2(xp), '--c')
+
+        # # plotting the fit line and origninal points
+        # axs[0].plot(x, y, 'yo', xp, poly1d_fn(xp), '--k')
+        #
+        # # plotting x mark for extremum
+        # x_min = extremum[0]  # [test > 0]
+        # y_min = extremum[1]
+        # axs[1].plot(x_min, y_min, 'xr')
+        # axs[2].plot(x_min, y_min, 'xr')
+
+        # plotting labels
+        axs[0].set_xlabel('$\it{V_{def}/V}$', ha="left", fontsize=16)
+        axs[0].set_ylabel('$\it{Moment}$', rotation=90, ha="right", fontsize=14)
+        axs[1].set_xlabel('$\it{V_{def}/V}$', ha="left", fontsize=16)
+        axs[1].set_ylabel('$\it{Moment}$', rotation=90, ha="right", fontsize=14)
+        axs[2].set_xlabel('$\it{V_{def}/V}$', ha="left", fontsize=16)
+        axs[2].set_ylabel('$\it{Moment}$', rotation=90, ha="right", fontsize=14)
+        # set limits - needs modification
+        xlimit = 0.8, 1.2
+        ylimit = min(y)-0.3*min(y), max(y)+0.3*max(y)
+        axs[0].set_ylim(ylimit)
+        axs[0].set_xlim(xlimit)
+        axs[1].set_ylim(ylimit)
+        axs[1].set_xlim(xlimit)
+        axs[2].set_ylim(ylimit)
+        axs[2].set_xlim(xlimit)
+        # show plot
+        plt.show()
+
+    return results
 
 def linfit(x, y):
     coeffs = np.polyfit(x, y, 1)
@@ -260,6 +370,15 @@ def parabfit(x, y):
     # test = poly1d_fn.deriv(2)(r_crit) # can check if min or max if necessary
     return extremum
 
+def powerfit(x, y):
+    coeffs = np.polyfit(x, y, 5)
+    poly1d_fn = np.poly1d(coeffs)
+    crit = poly1d_fn.deriv().r
+    extremum_x = float(crit[crit.imag == 0].real)
+    extremum_y = poly1d_fn(extremum_x)
+    extremum = [extremum_x, extremum_y]
+    # test = poly1d_fn.deriv(2)(r_crit) # can check if min or max if necessary
+    return extremum
 
 def magnetoelastic(ID, deformation):
     if deformation + '_inc' in os.listdir(vasp_results_dir + '/' + str(ID)):
@@ -321,10 +440,15 @@ def magnetoelastic_numbers():
     return slope, fit_quality, new_slope, new_fit_quality
 
 
-# print(magnetoelastic_numbers())
-print(polyfit('mp-1222161', 'c'))
-print(polyfit_moment('mp-1222161', 'a'))
 
+
+
+# print(magnetoelastic_numbers())
+# print(polyfit('mp-1222161', 'c'))
+# print(polyfit_moment('mp-5951', 'V'))
+# print(polyfit_moment('mp-582028', 'a'))
+
+print(polyfit_moment_5point('mp-6670'))
 # 2213
 # 1200
 # 238

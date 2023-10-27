@@ -4,9 +4,10 @@ Screening for high-performance magnetocaloric materials using information from c
 Written in Python3
 
 Essentially MCEScreening consists of three parts:
-1. _*Screener*_ - used to download data from Aflow and apply various screening criteria.   
-2. _*Creator*_ - a set of python scripts to create VASP input files for all calculations. Can be run locally (and transfer resulting file structure to cluster) or directly on the cluster .
-3. _*Executor*_ - A script submited to queueing system to execute a single calculation. 
+1. _*Downloader*_ - used to download data from various material databases.
+2. _*Screener*_   a set of python scripts to apply various screening criteria before and after DFT calculations.   
+3. _*Creator*_ - a set of python scripts to create VASP input files for all calculations. Can be run locally (and transfer resulting file structure to cluster) or directly on the cluster .
+4. _*Executor*_ - A script submited to queueing system to execute a single calculation. 
 
 File Structure
 ---

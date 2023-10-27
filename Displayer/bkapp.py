@@ -31,17 +31,17 @@ select_file = Select(title="Database file:", value=dat_files[0], options=dat_fil
 #     raise ValueError('should be only one .csv file in the current directory')
 
 datalist1 = get_datasource(dat_files[0])
-datalist2 = get_datasource(dat_files[1])
-datalist3 = get_datasource(dat_files[2])
+# datalist2 = get_datasource(dat_files[1])
+# datalist3 = get_datasource(dat_files[2])
 
 
 def select_datasource():
     if select_file.value == dat_files[0]:
         datalist = datalist1
-    if select_file.value == dat_files[1]:
-        datalist = datalist2
-    if select_file.value == dat_files[2]:
-        datalist = datalist3
+    # if select_file.value == dat_files[1]:
+    #     datalist = datalist2
+    # if select_file.value == dat_files[2]:
+    #     datalist = datalist3
     back = (datalist.sort_values(by=axis_map[y_axis.value], ascending=True))  # making a separate dataframe for non-highlighted entries
     return datalist, back
 
@@ -65,7 +65,7 @@ axis_map = {
     "Magneto Elastic Uniaxial c": "Mel_c",
     "Internal Field Calculated": "magF_u",
     "Internal Field Maximal": "magF_max",
-    "Internal Field Database": "mag_field",
+   # "Internal Field Database": "mag_field",
     "Volume": "volume_cell",
     # "Rare": "rare_content",
     "Price Estimate": "price"
@@ -93,10 +93,13 @@ magEl_V = Slider(title="Magneto Elastic Volumetric", value=0, start=datalist1['M
 # magEl_V = Slider(title="Magneto Elastic Volumetric", value=0, start=0, end=100, step=0.5)
 intField = Slider(title="Internal Field", start=0, end=3, value=0, step=0.05)
 maxField = Slider(title="Internal Field (max)", start=0, end=3, value=0, step=0.05)
-appField = Slider(title="Applied Field Response", start=-2, end=2, value=0, step=0.01)
+#appField = Slider(title="Applied Field Response", start=-2, end=2, value=0, step=0.01)
 rareContent = Slider(title="Rare Elements allowed %", start=0, end=100, value=100, step=1)
 magActive = Slider(title="Magnetically active atoms %", start=0, end=100, value=50, step=1)
 prices = Spinner(title="Maximum allowed price (EUR/kg)", low=0, high=datalist1['price'].max(), step=0.5, value=datalist1['price'].max())
+fitMel = Spinner(title="Mag.El. QOF", low=0, high=1, step=0.01, value=0)
+fitE = Spinner(title="Energy QOF", low=0, high=1, step=0.01, value=0)
+
 # prices = Spinner(title="Price Estimate Max EUR/kg", low=0, high=55000, step=0.5, value=55000)
 
 # Slider(title="Price Estimate Max EUR/kg", start=0, end=datalist['price'].max(), value=datalist['price'].max(), step=1)
@@ -125,7 +128,7 @@ source = ColumnDataSource(data=dict(x=[],
                                     polymorphs=[],
                                     mag_sites=[],
                                     mag_active=[],
-                                    mag_field=[],
+                       #             mag_field=[],
                                     magF_u=[],
                                     magF_max=[],
                                     Mel_full=[],
@@ -133,13 +136,15 @@ source = ColumnDataSource(data=dict(x=[],
                                     Mel_a=[],
                                     Mel_b=[],
                                     Mel_c=[],
-                                    BEXT=[],
+                             #       BEXT=[],
                                     volume_cell=[],
                                     lattice_system=[],
                                     database=[],
                                     # date_complete=[],
                                     rare_content=[],
-                                    price=[])
+                                    price=[],
+                                    Mel_worst_fit=[],
+                                    E_worst_fit=[])
                           )
 # Create second Data Source that will be used by the plot
 source_back = ColumnDataSource(data=dict(x=[],
@@ -150,7 +155,7 @@ source_back = ColumnDataSource(data=dict(x=[],
                                          magF_max=[],
                                          Mel_full=[],
                                          Mel_V=[],
-                                         BEXT=[],
+                                   #      BEXT=[],
                                          lattice_system=[],
                                          database=[])
                                )
@@ -162,7 +167,7 @@ TOOLTIPS = [
     ("Mag.el", "@Mel_full"),
     ("Mag.el V", "@Mel_V"),
     ("Internal field", "@magF_u"),
-    ("A.F. Response", "@BEXT"),
+  #  ("A.F. Response", "@BEXT"),
     ("Database", "@database")
 ]
 
@@ -209,7 +214,7 @@ s2 = ColumnDataSource(data=dict(ID=[],
                                 polymorphs=[],
                                 mag_sites=[],
                                 mag_active=[],
-                                mag_field=[],
+                            #    mag_field=[],
                                 magF_u=[],
                                 magF_max=[],
                                 Mel_full=[],
@@ -217,7 +222,7 @@ s2 = ColumnDataSource(data=dict(ID=[],
                                 # Mel_a=[],
                                 # Mel_b=[],
                                 # Mel_c=[],
-                                BEXT=[],
+                              #  BEXT=[],
                                 volume_cell=[],
                                 lattice_system=[],
                                 rare_content=[],
@@ -233,13 +238,13 @@ columns = [
     TableColumn(field="polymorphs", title="Polymorphs"),
     TableColumn(field="mag_sites", title="Sites"),
     TableColumn(field="mag_active", title="Mag.active", formatter=NumberFormatter(format="0.00")),
-    TableColumn(field="mag_field", title="Internal Field DB", formatter=NumberFormatter(format="0.00")),
+  #  TableColumn(field="mag_field", title="Internal Field DB", formatter=NumberFormatter(format="0.00")),
     TableColumn(field="magF_u", title="Internal Field", formatter=NumberFormatter(format="0.00")),
     TableColumn(field="magF_max", title="Internal Field (max)", formatter=NumberFormatter(format="0.00")),
     TableColumn(field="volume_cell", title="Volume", formatter=NumberFormatter(format="0.00")),
     TableColumn(field="Mel_full", title="Magneto Elastic", formatter=NumberFormatter(format="0.00")),
     TableColumn(field="Mel_V", title="Mag.El. Volumetric", formatter=NumberFormatter(format="0.00")),
-    TableColumn(field="BEXT", title="A.F. Response", formatter=NumberFormatter(format="0.00")),
+  #  TableColumn(field="BEXT", title="A.F. Response", formatter=NumberFormatter(format="0.00")),
     # TableColumn(field="rare_content", title="RE", formatter=NumberFormatter(format="0.00")),
     TableColumn(field="price", title="Price", formatter=NumberFormatter(format="0.00")),
     TableColumn(field="database", title="Database"),
@@ -260,7 +265,7 @@ source.selected.js_on_change('indices', CustomJS(args=dict(s1=source, s2=s2), co
             d2['polymorphs'] = []
             d2['mag_sites'] = []
             d2['mag_active'] = []
-            d2['mag_field'] = []
+
             d2['magF_u'] = []
             d2['magF_max'] = []
             d2['volume_cell'] = []
@@ -269,9 +274,11 @@ source.selected.js_on_change('indices', CustomJS(args=dict(s1=source, s2=s2), co
             d2['Mel_a'] = []
             d2['Mel_b'] = []
             d2['Mel_c'] = []
-            d2['BEXT'] = []
+
             d2['rare_content'] = []
             d2['price'] = []
+            d2['Mel_worst_fit'] = []
+            d2['E_worst_fit'] = []
             d2['database'] = []
 
             for (var i = 0; i < inds.length; i++) {
@@ -282,7 +289,7 @@ source.selected.js_on_change('indices', CustomJS(args=dict(s1=source, s2=s2), co
                 d2['polymorphs'].push(d1['polymorphs'][inds[i]])
                 d2['mag_sites'].push(d1['mag_sites'][inds[i]])
                 d2['mag_active'].push(d1['mag_active'][inds[i]])
-                d2['mag_field'].push(d1['mag_field'][inds[i]])
+
                 d2['magF_u'].push(d1['magF_u'][inds[i]])
                 d2['magF_max'].push(d1['magF_max'][inds[i]])
                 d2['volume_cell'].push(d1['volume_cell'][inds[i]])
@@ -291,9 +298,11 @@ source.selected.js_on_change('indices', CustomJS(args=dict(s1=source, s2=s2), co
                 d2['Mel_a'].push(d1['Mel_a'][inds[i]])
                 d2['Mel_b'].push(d1['Mel_b'][inds[i]])
                 d2['Mel_c'].push(d1['Mel_c'][inds[i]])
-                d2['BEXT'].push(d1['BEXT'][inds[i]])
+
                 d2['rare_content'].push(d1['rare_content'][inds[i]])            
-                d2['price'].push(d1['price'][inds[i]])            
+                d2['price'].push(d1['price'][inds[i]])      
+                d2['Mel_worst_fit'].push(d1['Mel_worst_fit'][inds[i]])    
+                d2['E_worst_fit'].push(d1['E_worst_fit'][inds[i]])        
                 d2['database'].push(d1['database'][inds[i]])
 
             }
@@ -323,10 +332,12 @@ def select_entries():
         (datalist.Mel_V >= magEl_V.value) &
         (datalist.magF_u >= intField.value) &
         (datalist.magF_max >= maxField.value) &
-        (datalist.BEXT >= appField.value) &
+    #    (datalist.BEXT >= appField.value) &
         (datalist.rare_content <= rareContent.value) &
         (datalist.mag_active >= magActive.value) &
-        (datalist.price <= prices.value)  # &
+        (datalist.price <= prices.value) &
+        (datalist.Mel_worst_fit >= fitMel.value) &
+        (datalist.E_worst_fit >= fitE.value)  # &
 
         # (datalist['date_complete'] >= date.fromtimestamp(date_complete_val[0]/1000)) &
         # (datalist['date_complete'] <= date.fromtimestamp(date_complete_val[1]/1000))
@@ -381,7 +392,7 @@ def update():
         polymorphs=df["polymorphs"],
         mag_sites=df["mag_sites"],
         mag_active=df["mag_active"],
-        mag_field=df["mag_field"],
+       #mag_field=df["mag_field"],
         magF_u=df["magF_u"],
         magF_max=df["magF_max"],
         volume_cell=df["volume_u"],
@@ -390,24 +401,25 @@ def update():
         Mel_a=df["Mel_a"],
         Mel_b=df["Mel_b"],
         Mel_c=df["Mel_c"],
-        BEXT=df["BEXT"],
+   #     BEXT=df["BEXT"],
         # date_complete=df["date_complete"],
         rare_content=df["rare_content"],
         price=df["price"],
+        Mel_worst_fit=df["Mel_worst_fit"],
+        E_worst_fit=df["E_worst_fit"],
         database=df["database"]
     )
     source_back.data = dict(
         x=back[x_name],
         y=back[y_name],
         index=back["index"],
-
         pretty_formula=back["pretty_formula"],
         lattice_system=back["lattice_system"],
         magF_u=back["magF_u"],
         magF_max=back["magF_max"],
         Mel_full=back["Mel_full"],
         Mel_V=back["Mel_V"],
-        BEXT=back["BEXT"],
+  #      BEXT=back["BEXT"],
         database=back["database"]
     )
 
@@ -423,16 +435,16 @@ for control1 in controls1:
     except:
         databaseType.on_change('active', lambda attr, old, new: update())
 
-controls2 = [symType, magEl, magEl_V, intField, maxField, appField, magActive, rareContent]
+controls2 = [symType, magEl, magEl_V, intField, maxField, magActive, rareContent]
 for control2 in controls2:
     try:
         control2.on_change('value_throttled', lambda attr, old, new: update())
     except:
         symType.on_change('active', lambda attr, old, new: update())
 #
-# controls3 = [y_axis, id_is, compName, elemIn, elemOut]
-# for control3 in controls3:
-#     control3.on_change('value', lambda attr, old, new: update())
+controls3 = [fitMel, fitE]
+for control3 in controls3:
+    control3.on_change('value', lambda attr, old, new: update())
 
 # creating input panels
 inputs1 = column(*controls1, width=250)
@@ -441,12 +453,12 @@ inputs1.sizing_mode = "stretch_height"
 inputs2 = column(*controls2, width=250, margin=(0, 0, 0, 40))
 inputs2.sizing_mode = "stretch_height"
 
-# inputs3 = column(*controls3, width=300)
-# inputs3.sizing_mode = "fixed"
+inputs3 = column(*controls3, width=250)
+inputs3.sizing_mode = "fixed"
 
 # created layouts
 Layout1 = layout([
-    [inputs1, p, [symType_title, inputs2, save_button]],
+    [inputs1, p, [symType_title, inputs2, save_button], inputs3],
     [data_table]],
     sizing_mode="scale_both")
 #

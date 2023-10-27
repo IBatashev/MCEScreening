@@ -82,4 +82,4 @@ outdir = 'D:/MCES/COD/outdir'
 # rename_subdir(wdatalist, outdir, 'a_1.16', 'a_1.05')
 # outdir_remove_subdir(wdatalist, outdir, 'c_0.95', trashdir)
 #outdir_copy('D:/MCES/MP/more_points_without_O.csv', 'D:/MCES/MP/outdir', 'D:/MCES/MP/new_outdir')
-file_copy('D:/MCES/MP/datalist_for_Tc_less_70_atoms.csv', 'D:/MCES/MP/datadir', 'D:/MCES/MP/inputdir_Tc')
+file_copy('D:/MCES/MP/datalist_for_Tc_less_70_atoms3.csv', 'D:/MCES/MP/datadir', 'D:/MCES/MP/inputdir3_Tc')
